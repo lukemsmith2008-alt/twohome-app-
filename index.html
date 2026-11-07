@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TwoHome">
+<meta name="theme-color" content="#0E2F38">
+<title>TwoHome Field App (Pilot)</title>
+<style>
+:root{--dark:#0E2F38;--sand:#F6F2EA;--mist:#E7EFEC;--card:#FCFBF8;--line:#DCD6CB;--txt:#1C2B30;--mut:#55666B;--teal:#1D6B76;--org:#B8541C;--orgbg:#FFF1E6;--red:#B42318;--redbg:#FDECEA;--green:#1E7B4F;--greenbg:#E6F4EC}
+*{box-sizing:border-box}
+body{margin:0;background:#D9D4CA;font-family:-apple-system,Inter,Segoe UI,Roboto,Arial,sans-serif;color:var(--txt);-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+.shell{max-width:520px;margin:0 auto;min-height:100vh;background:var(--sand)}
+header.top{background:var(--dark);color:#fff;padding:calc(14px + env(safe-area-inset-top)) 18px 14px;position:sticky;top:0;z-index:5}
+header.top h1{font-size:19px;margin:0;font-weight:700}
+header.top p{margin:4px 0 0;font-size:13px;color:#A9C4C8}
+.back{background:none;border:none;color:#fff;font-size:15px;padding:6px 0;cursor:pointer;min-height:40px}
+main{padding:14px 14px 110px}
+nav.tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:var(--card);border-top:1px solid var(--line);display:flex;z-index:6;padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;background:none;border:none;padding:10px 4px 12px;font-size:12px;color:var(--mut);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-height:56px}
+nav.tabs button.on{color:var(--dark);font-weight:700}
+nav.tabs svg{width:22px;height:22px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between}
+.listbtn{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer}
+.listbtn h3{margin:0 0 3px;font-size:16px}.listbtn p{margin:0;font-size:13px;color:var(--mut);line-height:1.45}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;letter-spacing:.3px;white-space:nowrap}
+.b-todo{background:var(--mist);color:var(--dark)}.b-prog{background:var(--orgbg);color:var(--org)}.b-done{background:var(--greenbg);color:var(--green)}
+.b-urgent{background:var(--redbg);color:var(--red)}.b-soon{background:var(--orgbg);color:var(--org)}
+h2.sec{font-size:13px;letter-spacing:1px;color:var(--teal);margin:18px 2px 8px;text-transform:uppercase}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:none;border-radius:999px;padding:12px 18px;font-weight:600;font-size:15px;cursor:pointer;min-height:46px;text-decoration:none}
+.btn-pri{background:var(--org);color:#fff}.btn-dark{background:var(--dark);color:#fff}.btn-out{background:transparent;border:2px solid var(--dark);color:var(--dark)}
+.btn-sm{padding:8px 14px;min-height:38px;font-size:13.5px}
+.btn-block{width:100%}.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-danger{background:transparent;border:2px solid var(--red);color:var(--red)}
+label.f{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+textarea,input[type=text],input[type=tel],input[type=email],input[type=number],select{width:100%;border:1px solid #A9B4B6;border-radius:10px;padding:10px 12px;font-size:16px;background:#fff}
+.item{border-top:1px solid var(--line);padding:12px 0}.item:first-child{border-top:none;padding-top:2px}
+.item .lbl{font-size:15px;font-weight:600;margin-bottom:8px;display:flex;justify-content:space-between;gap:8px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.seg button{border:1.5px solid var(--line);background:#fff;border-radius:10px;padding:9px 2px;font-size:12.5px;font-weight:600;cursor:pointer;min-height:44px}
+.seg button.on-ok{background:var(--greenbg);border-color:var(--green);color:var(--green)}
+.seg button.on-done{background:var(--mist);border-color:var(--teal);color:var(--teal)}
+.seg button.on-soon{background:var(--orgbg);border-color:var(--org);color:var(--org)}
+.seg button.on-urgent{background:var(--redbg);border-color:var(--red);color:var(--red)}
+.extra{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+.photos{display:flex;gap:8px;flex-wrap:wrap}
+.ph{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--mist);display:block;border:1px solid var(--line)}
+.thumb{position:relative;border:none;padding:0;background:none;cursor:pointer}
+.thumb .tag{position:absolute;left:4px;top:4px;background:rgba(14,47,56,.85);color:#fff;font-size:9px;font-weight:700;padding:2px 5px;border-radius:5px}
+.thumb .x{position:absolute;right:-6px;top:-6px;width:24px;height:24px;border-radius:50%;background:var(--red);color:#fff;font-size:13px;line-height:24px;text-align:center;font-weight:700}
+.addph{width:72px;height:72px;border-radius:10px;border:1.5px dashed var(--teal);display:flex;align-items:center;justify-content:center;color:var(--teal);font-size:12px;font-weight:600;cursor:pointer;text-align:center}
+.addph input{display:none}
+.cap{font-size:12px;color:var(--mut)}
+.progress{height:8px;background:var(--mist);border-radius:99px;overflow:hidden;margin:8px 0 4px}.progress div{height:100%;background:var(--teal)}
+.sticky{position:fixed;bottom:calc(64px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);width:100%;max-width:520px;padding:10px 14px;background:linear-gradient(transparent,var(--sand) 30%);z-index:4}
+.req{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px;color:var(--org)}.req li{padding:2px 0}
+.edit-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;margin-bottom:8px}
+.icon-btn{border:1.5px solid var(--line);background:#fff;border-radius:10px;min-width:44px;min-height:44px;cursor:pointer;font-weight:700}
+.kv{display:grid;grid-template-columns:105px 1fr;gap:6px 10px;font-size:14px}.kv dt{color:var(--mut)}.kv dd{margin:0;word-break:break-word}
+.toast{position:fixed;left:50%;bottom:150px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;z-index:30;max-width:90%;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.note{font-size:12.5px;color:var(--mut);line-height:1.5}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:12px}
+.lb img{max-width:100%;max-height:70vh;border-radius:10px}
+.lb .acts{display:flex;gap:10px}
+.lb button{background:#fff;border:none;border-radius:999px;padding:10px 20px;font-weight:700;cursor:pointer;min-height:44px}
+.lb button.del{background:var(--red);color:#fff}
+/* report */
+.rep-head{background:var(--dark);color:#fff;border-radius:14px;padding:18px;margin-bottom:12px}
+.rep-head h2{margin:6px 0;font-size:21px}.rep-head p{margin:0;color:#C9D8DA;font-size:13.5px;line-height:1.5}
+.score{display:flex;gap:10px;margin-top:12px}.score div{flex:1;background:#163E49;border-radius:10px;padding:10px;text-align:center;font-size:12px;color:#C9D8DA}.score b{display:block;font-size:22px;color:#fff}
+.rec{background:var(--orgbg);border:1px solid #E9B48F;border-radius:12px;padding:12px;margin-bottom:10px}.rec.urg{background:var(--redbg);border-color:#F1A7A0}
+.rec h4{margin:0 0 4px;font-size:15px}.rec p{margin:0 0 8px;font-size:14px;line-height:1.45}
+.gal{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.gal img{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:10px;display:block;border:1px solid var(--line)}
+.list{margin:0;padding:0;list-style:none}.list li{padding:7px 0;border-top:1px solid var(--line);font-size:14px}.list li:first-child{border-top:none}
+.ok{color:var(--green);font-weight:700}
+@media print{
+  body{background:#fff}.shell{max-width:none}header.top,nav.tabs,.sticky,.noprint,.toast{display:none!important}
+  main{padding:0}.card,.rec,.rep-head{break-inside:avoid}.rep-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .gal img{break-inside:avoid}
+}
+</style>
+</head>
+<body>
+<div class="shell" id="app"></div>
+<script>
+/* ================= Storage (IndexedDB: saved on this phone) ================= */
+const DBN='twohome-pilot';
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(DBN,1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('kv');d.createObjectStore('photos');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+let DB;
+async function dbPut(store,key,val){return new Promise((res,rej)=>{const t=DB.transaction(store,'readwrite');t.objectStore(store).put(val,key);t.oncomplete=res;t.onerror=()=>rej(t.error);});}
+async function dbGet(store,key){return new Promise((res,rej)=>{const r=DB.transaction(store).objectStore(store).get(key);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function dbDel(store,key){return new Promise((res)=>{const t=DB.transaction(store,'readwrite');t.objectStore(store).delete(key);t.oncomplete=res;});}
+async function dbAll(store){return new Promise((res)=>{const out={};const r=DB.transaction(store).objectStore(store).openCursor();r.onsuccess=()=>{const c=r.result;if(c){out[c.key]=c.value;c.continue();}else res(out);};});}
+
+/* ================= Data ================= */
+let D={settings:{biz:'TwoHome Services',me:'',phone:'',email:''},homes:[],visits:[]};
+const URLS={}; // photo id -> object URL
+const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
+async function save(){await dbPut('kv','data',D);}
+const TEMPLATES={
+ indy:{name:'Indianapolis (winter)',items:[
+  ['Exterior','Doors & locks secure'],['Exterior','Windows intact, no signs of entry'],['Exterior','Roof & gutters (damage, ice dams)'],['Exterior','Walkways & driveway (snow/ice)'],['Exterior','Mail, packages & flyers collected'],
+  ['Interior','Ceilings & walls (no stains)'],['Interior','Floors dry, no water'],['Interior','Under all sinks dry'],['Interior','Toilets flushed, faucets run'],['Interior','Basement walls & floor dry'],
+  ['Systems','Thermostat holding set temperature'],['Systems','Furnace running normally'],['Systems','Water heater (no leaks)'],['Systems','Sump pump tested'],['Systems','Water softener (salt level)'],['Systems','Fridge & freezer cold'],['Systems','Smoke & CO detectors']]},
+ fl:{name:'Florida (summer)',items:[
+  ['Exterior','Doors & locks secure'],['Exterior','Windows & screens intact'],['Exterior','Roof, soffits & gutters (storm damage)'],['Exterior','Lanai / pool cage'],['Exterior','Mail, packages & flyers collected'],
+  ['Interior','Ceilings & walls (no stains, no mold)'],['Interior','Floors dry, no water'],['Interior','Under all sinks dry'],['Interior','Toilets flushed, faucets run'],['Interior','Signs of pests'],
+  ['Systems','AC cooling & thermostat set'],['Systems','Humidity reading'],['Systems','AC drain line clear'],['Systems','Water heater (no leaks)'],['Systems','Water softener (salt level)'],['Systems','Fridge & freezer cold'],['Systems','Smoke & CO detectors']]}
+};
+const PLANS={monthly:'Monthly Check',biweekly:'Every 2 Weeks',weekly:'Weekly Watch',concierge:'Concierge',twohome:'Two-Home Plan',other:'Other / trial'};
+const STAT={ok:'OK',done:'Serviced',soon:'Soon',urgent:'Urgent'};
+
+/* ================= UI state ================= */
+const S={tab:'visits',view:'list',homeId:null,visitId:null,lb:null,reveal:false};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const home=id=>D.homes.find(h=>h.id===id);
+const visit=()=>D.visits.find(v=>v.id===S.visitId);
+const tnow=()=>new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+const dfmt=iso=>new Date(iso).toLocaleDateString([], {weekday:'short',month:'short',day:'numeric',year:'numeric'});
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),2600);}
+const flagged=v=>v.items.filter(i=>i.status==='soon'||i.status==='urgent');
+const shortAddr=h=>h.address.split(',')[0];
+
+/* ================= Photos: stamp + compress ================= */
+async function stampPhoto(file,h){
+  const t=new Date(); const time=t.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  const label=t.toLocaleDateString([], {month:'short',day:'numeric',year:'numeric'})+' · '+time+' · '+shortAddr(h);
+  let blob=file;
+  try{
+    const bmp=await createImageBitmap(file);
+    const sc=Math.min(1,1400/Math.max(bmp.width,bmp.height));
+    const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*sc);cv.height=Math.round(bmp.height*sc);
+    const g=cv.getContext('2d');g.drawImage(bmp,0,0,cv.width,cv.height);
+    const fs=Math.max(16,Math.round(cv.width/38));g.font=`600 ${fs}px Arial`;
+    const pad=fs*.6,hh=fs+pad*2;g.fillStyle='rgba(0,0,0,.6)';g.fillRect(0,cv.height-hh,cv.width,hh);
+    g.fillStyle='#fff';g.fillText(label,pad,cv.height-pad-fs*.15);
+    blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));
+  }catch(e){}
+  const id='p'+uid();
+  await dbPut('photos',id,{blob,time,label});
+  URLS[id]=URL.createObjectURL(blob);
+  return {id,time};
+}
+async function delPhoto(pid){
+  const v=visit(); if(!v) return;
+  v.items.forEach(i=>i.photos=i.photos.filter(p=>p.id!==pid));
+  ['arrival','walk','departure'].forEach(k=>v.proof[k]=v.proof[k].filter(p=>p.id!==pid));
+  await dbDel('photos',pid); await save();
+}
+
+/* ================= Shared bits ================= */
+const ICON={
+ visits:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+ homes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>',
+ settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
+};
+const nav=()=>`<nav class="tabs" aria-label="Sections">${[['visits','Visits'],['homes','Homes'],['settings','Settings']].map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${ICON[k]}${l}</button>`).join('')}</nav>`;
+const topbar=(title,sub,back)=>`<header class="top">${back?`<button class="back" data-act="${back}">‹ Back</button>`:''}<h1>${esc(title)}</h1>${sub?`<p>${esc(sub)}</p>`:''}</header>`;
+function thumb(p,del){const u=URLS[p.id];return `<button class="thumb" data-act="lb" data-v="${p.id}" aria-label="Open photo">${u?`<img class="ph" src="${u}" alt="Photo">`:'<span class="ph"></span>'}${p.tag?`<span class="tag">${p.tag.toUpperCase()}</span>`:''}</button>`;}
+const addBtn=(attr,l)=>`<label class="addph">${l}<input type="file" accept="image/*" capture="environment" ${attr}></label>`;
+
+/* ================= VISITS ================= */
+function vVisits(){
+  const open=D.visits.filter(v=>v.status!=='sent').sort((a,b)=>b.date.localeCompare(a.date));
+  const sent=D.visits.filter(v=>v.status==='sent').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
+  const card=v=>{const h=home(v.homeId)||{client:'(deleted home)',address:''};const fl=flagged(v).length;
+    return `<button class="listbtn" data-act="openvisit" data-v="${v.id}"><div class="row"><h3>${esc(h.client)}</h3>${v.status==='sent'?'<span class="badge b-done">SENT</span>':'<span class="badge b-prog">IN PROGRESS</span>'}</div><p>${esc(h.address)}</p><p>${dfmt(v.date)} · ${v.started}${v.finished?'–'+v.finished:''}${fl?` · <b style="color:var(--org)">${fl} flagged</b>`:''}</p></button>`;};
+  return topbar('Visits',new Date().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'}))+`<main>
+  ${D.homes.length?`<h2 class="sec">Start a visit</h2>${D.homes.map(h=>`<button class="listbtn" data-act="startvisit" data-v="${h.id}"><div class="row"><h3>${esc(h.client)}</h3><span class="badge b-todo">START</span></div><p>${esc(h.address)} · ${PLANS[h.plan]||''}</p></button>`).join('')}`:
+  `<div class="card"><b>Welcome!</b><p class="note" style="margin:6px 0 10px">Add your first home (your grandparents' house is perfect), customize its checklist, then start a visit.</p><button class="btn btn-pri btn-block" data-act="newhome">Add a home</button></div>`}
+  ${open.length?`<h2 class="sec">In progress</h2>${open.map(card).join('')}`:''}
+  ${sent.length?`<h2 class="sec">Sent reports</h2>${sent.map(card).join('')}`:''}
+  </main>`+nav();
+}
+async function startVisit(hid){
+  const h=home(hid);
+  const items=h.checklist.map(c=>({id:uid(),area:c.area,label:c.label,status:null,note:'',photos:[]}))
+    .concat(h.upkeep.filter(u=>u.trim()).map(u=>({id:uid(),area:'Upkeep tasks',label:u,status:null,note:'',photos:[]})));
+  const v={id:uid(),homeId:hid,date:new Date().toISOString(),started:tnow(),finished:null,status:'progress',items,proof:{arrival:[],walk:[],departure:[]},responses:{}};
+  D.visits.push(v); await save(); S.visitId=v.id; S.view='visit'; S.reveal=false; toast('Visit started: arrival time saved');
+}
+function missing(v){
+  const m=[];
+  if(!v.proof.arrival.length) m.push('Arrival photo');
+  flagged(v).filter(i=>!i.photos.length).forEach(i=>m.push('Photo of flagged item: '+i.label));
+  v.items.filter(i=>i.status==='done').forEach(i=>{if(!i.photos.some(p=>p.tag==='before')||!i.photos.some(p=>p.tag==='after'))m.push('Before & after: '+i.label);});
+  if(!v.proof.departure.length) m.push('Departure photo');
+  return m;
+}
+function vVisit(){
+  const v=visit(),h=home(v.homeId); const locked=v.status==='sent';
+  const answered=v.items.filter(i=>i.status).length,total=v.items.length; const miss=missing(v); const ready=answered===total&&!miss.length;
+  const areas=[...new Set(v.items.map(i=>i.area))];
+  const proof=(k,t,sub,req)=>`<div style="margin-bottom:10px"><div class="row"><b>${t}</b>${v.proof[k].length?'<span class="badge b-done">✓</span>':req?'<span class="badge b-soon">REQUIRED</span>':'<span class="badge b-todo">OPTIONAL</span>'}</div><p class="cap" style="margin:2px 0 6px">${sub}</p><div class="photos">${v.proof[k].map(p=>thumb(p)).join('')}${locked?'':addBtn(`data-proof="${k}"`,'+ Photo')}</div></div>`;
+  return topbar(h.client,`${dfmt(v.date)} · arrived ${v.started}`,'back')+`<main>
+  <div class="card"><dl class="kv"><dt>Address</dt><dd><a href="https://maps.google.com/?q=${encodeURIComponent(h.address)}">${esc(h.address)}</a></dd>
+   ${h.phone?`<dt>Phone</dt><dd><a href="tel:${esc(h.phone)}">${esc(h.phone)}</a></dd>`:''}
+   ${h.access?`<dt>Access</dt><dd>${S.reveal?esc(h.access):'••••'} <button class="btn btn-sm btn-out" style="min-height:32px;padding:4px 10px" data-act="reveal">${S.reveal?'Hide':'Show'}</button></dd>`:''}
+   ${h.emergency?`<dt>Emergency OK</dt><dd>Up to $${esc(h.emergency)} to stop active damage</dd>`:''}</dl>
+   ${h.notes?`<p style="margin:10px 0 0;font-size:14px;background:var(--orgbg);padding:10px;border-radius:10px"><b>Notes:</b> ${esc(h.notes)}</p>`:''}</div>
+  <div class="cap">${answered}/${total} checks done</div><div class="progress"><div style="width:${Math.round(answered/total*100)}%"></div></div>
+  <h2 class="sec">Photo proof: arrival</h2><div class="card">${proof('arrival','Arrival photo','Front of the home as you arrive.',1)}</div>
+  ${areas.map(a=>`<h2 class="sec">${esc(a)}</h2><div class="card">${v.items.filter(i=>i.area===a).map(i=>itemRow(i,locked)).join('')}</div>`).join('')}
+  <h2 class="sec">Photo proof: walk-through & departure</h2><div class="card">${proof('walk','Walk-through photos','Rooms, readings, anything showing the home is in good shape.',0)}${proof('departure','Departure photo','Door locked as you leave.',1)}</div>
+  ${!locked&&(miss.length||answered<total)?`<div class="card"><b style="font-size:14px">Before you can create the report</b><ul class="req">${answered<total?`<li>○ Finish checklist (${total-answered} left)</li>`:''}${miss.map(m=>`<li>○ ${esc(m)}</li>`).join('')}</ul></div>`:''}
+  ${!locked?`<button class="btn btn-danger btn-block noprint" data-act="delvisit" style="margin-top:6px">Delete this visit</button>`:''}
+  <div style="height:70px"></div>
+  <div class="sticky"><button class="btn btn-dark btn-block" data-act="toreport" ${!ready&&!locked?'disabled':''}>${locked?'View report':ready?'Create report':`${(total-answered)+miss.length} left before report`}</button></div>
+  </main>`+nav()+lightbox();
+}
+function itemRow(it,locked){
+  const adds=locked?'':it.status==='done'?addBtn(`data-photo="${it.id}" data-tag="before"`,'+ Before')+addBtn(`data-photo="${it.id}" data-tag="after"`,'+ After'):addBtn(`data-photo="${it.id}"`,'+ Photo');
+  return `<div class="item"><div class="lbl"><span>${esc(it.label)}</span>${it.status==='soon'?'<span class="badge b-soon">SOON</span>':it.status==='urgent'?'<span class="badge b-urgent">URGENT</span>':''}</div>
+  <div class="seg" role="group" aria-label="Status for ${esc(it.label)}">${['ok','done','soon','urgent'].map(s=>`<button data-act="status" data-id="${it.id}" data-v="${s}" class="${it.status===s?'on-'+s:''}" ${locked?'disabled':''} aria-pressed="${it.status===s}">${STAT[s]}</button>`).join('')}</div>
+  <div class="extra">${(it.status&&it.status!=='ok')||it.note?`<textarea rows="2" data-note="${it.id}" placeholder="${it.status==='soon'||it.status==='urgent'?'What did you notice? What do you recommend?':'Note / reading (optional)'}" ${locked?'disabled':''}>${esc(it.note)}</textarea>`:`${locked?'':`<button class="cap" style="background:none;border:none;padding:0;text-align:left;cursor:pointer;color:var(--teal)" data-act="addnote" data-id="${it.id}">+ Add note or reading</button>`}`}
+   ${it.status==='done'&&!locked?'<div class="cap">Serviced items need a before and an after photo.</div>':''}
+   <div class="photos">${it.photos.map(p=>thumb(p)).join('')}${adds}</div></div></div>`;
+}
+function lightbox(){
+  if(!S.lb) return ''; const u=URLS[S.lb]; const locked=visit()&&visit().status==='sent';
+  return `<div class="lb" role="dialog" aria-label="Photo">${u?`<img src="${u}" alt="Photo">`:''}<div class="acts">${locked?'':'<button class="del" data-act="delphoto">Delete</button>'}<button data-act="lbclose">Close</button></div></div>`;
+}
+
+/* ================= REPORT ================= */
+function vReport(){
+  const v=visit(),h=home(v.homeId),st=D.settings;
+  const fl=flagged(v).sort(a=>a.status==='urgent'?-1:1), done=v.items.filter(i=>i.status==='done'), ok=v.items.filter(i=>i.status==='ok');
+  const allP=[...v.proof.arrival,...v.items.flatMap(i=>i.photos),...v.proof.walk,...v.proof.departure];
+  const img=p=>URLS[p.id]?`<img src="${URLS[p.id]}" alt="Photo">`:'';
+  return topbar('Client report',`${h.client} · ${dfmt(v.date)}`,'toVisit')+`<main>
+  <div class="rep-head"><span class="badge" style="background:#F0A374;color:var(--dark)">${esc(st.biz.toUpperCase())} · VISIT REPORT</span>
+   <h2>${esc(h.address)}</h2><p>${dfmt(v.date)} · Arrived ${v.started} · Left ${v.finished}${st.me?`<br>Checked by ${esc(st.me)}`:''} · ${allP.length} time-stamped photos</p>
+   <div class="score"><div><b>${ok.length+done.length}</b>All good</div><div><b>${done.length}</b>Serviced</div><div><b>${fl.length}</b>Need attention</div></div></div>
+  <div class="card"><p style="margin:0;font-size:15px;line-height:1.55">${fl.some(i=>i.status==='urgent')?'<b>Action needed:</b> we found an urgent issue and will call you.':fl.length?`<b>Your home is secure.</b> We noticed ${fl.length} thing${fl.length>1?'s':''} that will need attention soon. Reply YES and we'll take care of ${fl.length>1?'them':'it'}.`:'<b>Your home is secure and everything checked out.</b>'}</p></div>
+  <h2 class="sec">Arrival & departure</h2><div class="card"><div class="gal">${[...v.proof.arrival.slice(0,1),...v.proof.departure.slice(0,1)].map(img).join('')}</div></div>
+  ${fl.length?`<h2 class="sec">Recommended service</h2>${fl.map(i=>`<div class="rec ${i.status==='urgent'?'urg':''}"><h4>${i.status==='urgent'?'Urgent':'Soon'}: ${esc(i.label)}</h4><p>${esc(i.note||'See photo.')}</p><div class="gal">${i.photos.map(img).join('')}</div>
+   <div class="noprint" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="cap">Client's answer:</span>${['approved','declined'].map(r=>`<button class="btn btn-sm ${v.responses[i.id]===r?'btn-dark':'btn-out'}" data-act="resp" data-id="${i.id}" data-v="${r}">${r==='approved'?'Approved':'Not now'}</button>`).join('')}</div></div>`).join('')}`:''}
+  ${done.length?`<h2 class="sec">Serviced today: before & after</h2><div class="card">${done.map(i=>`<b>${esc(i.label)}</b>${i.note?`<div class="cap">${esc(i.note)}</div>`:''}<div class="gal" style="margin:6px 0 12px">${['before','after'].map(t=>(i.photos.filter(p=>p.tag===t).slice(0,1)).map(img).join('')).join('')}</div>`).join('')}</div>`:''}
+  ${v.proof.walk.length?`<h2 class="sec">Walk-through photos</h2><div class="card"><div class="gal">${v.proof.walk.map(img).join('')}</div></div>`:''}
+  <h2 class="sec">Checked and OK (${ok.length})</h2><div class="card"><ul class="list">${ok.map(i=>`<li><span class="ok">✓</span> ${esc(i.label)}${i.note?` <span class="cap">· ${esc(i.note)}</span>`:''}</li>`).join('')}</ul></div>
+  ${st.phone||st.email?`<div class="card">Questions? ${esc(st.phone)} ${esc(st.email)}</div>`:''}
+  <div class="noprint">
+   <button class="btn btn-pri btn-block" data-act="share">Send by text or email (summary + photos)</button>
+   <div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-out" style="flex:1" data-act="copytext">Copy summary</button><button class="btn btn-out" style="flex:1" data-act="print">Save as PDF</button></div>
+   ${v.status!=='sent'?`<button class="btn btn-dark btn-block" style="margin-top:8px" data-act="marksent">Mark as sent</button>`:`<p class="note" style="text-align:center">Marked as sent.</p>`}
+   <p class="note">"Send" opens your phone's share menu: pick Messages or Mail, then choose ${esc(h.client)}. "Save as PDF" opens the print screen; on iPhone, use Share › Save to Files.</p>
+  </div></main>`+nav();
+}
+function summaryText(v){
+  const h=home(v.homeId),st=D.settings; const fl=flagged(v),done=v.items.filter(i=>i.status==='done'),ok=v.items.filter(i=>i.status==='ok');
+  let t=`${st.biz}: Visit report\n${h.address}\n${dfmt(v.date)}, ${v.started}–${v.finished}${st.me?` (${st.me})`:''}\n\n`;
+  t+=fl.length?`Your home is secure. ${fl.length} item${fl.length>1?'s need':' needs'} attention:\n`+fl.map(i=>`• ${i.status==='urgent'?'URGENT':'Soon'}: ${i.label}${i.note?' - '+i.note:''}`).join('\n')+`\nReply YES and we'll take care of ${fl.length>1?'them':'it'}.\n\n`:'Your home is secure and everything checked out.\n\n';
+  if(done.length) t+='Serviced today:\n'+done.map(i=>`• ${i.label}${i.note?' - '+i.note:''}`).join('\n')+'\n\n';
+  t+=`Checked and OK (${ok.length}): `+ok.map(i=>i.label+(i.note?` (${i.note})`:'')).join('; ')+'.\n';
+  if(st.phone||st.email) t+=`\nQuestions? ${st.phone} ${st.email}`.trimEnd();
+  return t;
+}
+async function shareReport(){
+  const v=visit(),h=home(v.homeId); const text=summaryText(v);
+  const ids=[...v.proof.arrival,...flagged(v).flatMap(i=>i.photos),...v.items.filter(i=>i.status==='done').flatMap(i=>i.photos),...v.proof.walk,...v.proof.departure].map(p=>p.id);
+  const files=[];for(const [n,id] of ids.entries()){const r=await dbGet('photos',id);if(r)files.push(new File([r.blob],`photo-${n+1}.jpg`,{type:'image/jpeg'}));}
+  try{
+    if(navigator.canShare&&navigator.canShare({files,text})){await navigator.share({files,text,title:'Visit report'});}
+    else if(navigator.share){await navigator.share({text,title:'Visit report'});toast('Photos could not be attached on this device; send them separately');}
+    else{await navigator.clipboard.writeText(text);toast('Summary copied. Paste it into a text or email');}
+  }catch(e){ if(e.name!=='AbortError') toast('Sharing failed: try Copy summary'); }
+}
+
+/* ================= HOMES ================= */
+function vHomes(){
+  return topbar('Homes',`${D.homes.length} home${D.homes.length!==1?'s':''}`)+`<main>
+  ${D.homes.map(h=>`<button class="listbtn" data-act="edithome" data-v="${h.id}"><div class="row"><h3>${esc(h.client)}</h3><span class="badge b-todo">${esc((PLANS[h.plan]||'').toUpperCase())}</span></div><p>${esc(h.address)}</p><p>${h.checklist.length} checklist items · ${h.upkeep.filter(u=>u.trim()).length} upkeep tasks</p></button>`).join('')}
+  <button class="btn btn-pri btn-block" data-act="newhome">+ Add a home</button></main>`+nav();
+}
+let DRAFT=null;
+function newHome(){DRAFT={id:uid(),client:'',address:'',phone:'',email:'',plan:'weekly',access:'',emergency:'500',notes:'',tpl:'indy',checklist:TEMPLATES.indy.items.map(([a,l])=>({area:a,label:l})),upkeep:['Top up water-softener salt','Replace burned-out bulbs'],isNew:true};S.view='home';}
+function vHome(){
+  const h=DRAFT; const areas=[...new Set(h.checklist.map(c=>c.area))];
+  const f=(k,l,type='text',ph='')=>`<label class="f" for="f-${k}">${l}</label><input id="f-${k}" type="${type}" data-f="${k}" value="${esc(h[k])}" placeholder="${ph}">`;
+  return topbar(h.isNew?'Add a home':'Edit home',h.client||'','cancelhome')+`<main>
+  <div class="card">${f('client','Client name','text','e.g., Grandma & Grandpa')}${f('address','Home address','text','Street, city, state')}${f('phone','Client phone','tel')}${f('email','Client email','email')}
+   <label class="f" for="f-plan">Plan</label><select id="f-plan" data-f="plan">${Object.entries(PLANS).map(([k,l])=>`<option value="${k}" ${h.plan===k?'selected':''}>${l}</option>`).join('')}</select>
+   <label class="f" for="f-access">Access info (lockbox, alarm, key tag)</label><input id="f-access" type="text" data-f="access" value="${esc(h.access)}" placeholder="Hidden until you tap Show">
+   ${f('emergency','Emergency spending OK up to ($)','number')}
+   <label class="f" for="f-notes">Notes for the visit</label><textarea id="f-notes" rows="3" data-f="notes" placeholder="Shutoff locations, thermostat setting, quirks of this house">${esc(h.notes)}</textarea></div>
+  <h2 class="sec">Checklist for this home</h2>
+  <div class="card"><p class="note" style="margin:0 0 8px">Start from a template, then rename, remove or add items to fit this house.</p>
+   <div style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(TEMPLATES).map(([k,t])=>`<button class="btn btn-sm ${h.tpl===k?'btn-dark':'btn-out'}" data-act="tpl" data-v="${k}">${t.name}</button>`).join('')}</div></div>
+  ${areas.map(a=>`<h2 class="sec">${esc(a)}</h2><div class="card">${h.checklist.map((c,ix)=>c.area!==a?'':`<div class="edit-row"><input type="text" aria-label="Checklist item" data-ci="${ix}" value="${esc(c.label)}"><button class="icon-btn" data-act="delitem" data-v="${ix}" aria-label="Remove item">✕</button></div>`).join('')}
+   <button class="btn btn-sm btn-out" data-act="additem" data-v="${esc(a)}">+ Add item to ${esc(a)}</button></div>`).join('')}
+  <div class="card"><label class="f" for="newarea" style="margin-top:0">Add a new section</label><div class="edit-row"><input id="newarea" type="text" placeholder="e.g., Pool & lanai, Garage, Guest house"><button class="icon-btn" data-act="addarea" aria-label="Add section">+</button></div></div>
+  <h2 class="sec">Upkeep tasks (done every visit)</h2>
+  <div class="card">${h.upkeep.map((u,ix)=>`<div class="edit-row"><input type="text" aria-label="Upkeep task" data-ui="${ix}" value="${esc(u)}"><button class="icon-btn" data-act="delup" data-v="${ix}" aria-label="Remove task">✕</button></div>`).join('')}<button class="btn btn-sm btn-out" data-act="addup">+ Add upkeep task</button></div>
+  <button class="btn btn-pri btn-block" data-act="savehome">Save home</button>
+  ${h.isNew?'':`<button class="btn btn-danger btn-block" style="margin-top:10px" data-act="delhome">Delete home</button>`}
+  </main>`+nav();
+}
+
+/* ================= SETTINGS ================= */
+function vSettings(){
+  const s=D.settings; const f=(k,l,t='text')=>`<label class="f" for="s-${k}">${l}</label><input id="s-${k}" type="${t}" data-s="${k}" value="${esc(s[k])}">`;
+  return topbar('Settings','Shown on every report')+`<main>
+  <div class="card">${f('biz','Business name')}${f('me','Your name (shown as "Checked by")')}${f('phone','Business phone','tel')}${f('email','Business email','email')}</div>
+  <h2 class="sec">Backup</h2>
+  <div class="card"><p class="note" style="margin:0 0 10px">Everything is saved <b>only on this phone</b>. Download a backup every week and keep it in iCloud/Google Drive. If the browser's data is cleared, the backup is how you get it back.</p>
+   <button class="btn btn-dark btn-block" data-act="export">Download backup</button>
+   <label class="btn btn-out btn-block" style="margin-top:8px">Restore from backup<input type="file" accept="application/json,.json" data-import="1" style="display:none"></label></div>
+  <p class="note">Pilot version 0.1 · For testing with first clients.</p></main>`+nav();
+}
+async function exportAll(){
+  const ph=await dbAll('photos'); const photos={};
+  for(const [k,v] of Object.entries(ph)){photos[k]={time:v.time,label:v.label,data:await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(v.blob);})};}
+  const blob=new Blob([JSON.stringify({v:1,data:D,photos})],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`twohome-backup-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();
+}
+async function importAll(file){
+  const j=JSON.parse(await file.text()); if(!j.data) throw new Error('bad');
+  for(const [k,v] of Object.entries(j.photos||{})){const blob=await (await fetch(v.data)).blob();await dbPut('photos',k,{blob,time:v.time,label:v.label});URLS[k]=URL.createObjectURL(blob);}
+  D=j.data; await save();
+}
+
+/* ================= Render + events ================= */
+function render(){
+  let h;
+  if(S.view==='visit') h=vVisit(); else if(S.view==='report') h=vReport(); else if(S.view==='home') h=vHome();
+  else h=S.tab==='visits'?vVisits():S.tab==='homes'?vHomes():vSettings();
+  $('#app').innerHTML=h;
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act,v=b.dataset.v; const vis=visit();
+  switch(a){
+    case 'tab': S.tab=v;S.view='list';break;
+    case 'back': S.view='list';break;
+    case 'startvisit': await startVisit(v);break;
+    case 'openvisit': S.visitId=v;S.view=D.visits.find(x=>x.id===v).status==='sent'?'report':'visit';S.reveal=false;break;
+    case 'reveal': S.reveal=!S.reveal;break;
+    case 'status':{const it=vis.items.find(i=>i.id===b.dataset.id);it.status=it.status===v?null:v;await save();break;}
+    case 'addnote':{const it=vis.items.find(i=>i.id===b.dataset.id);it.note=' ';render();const t=document.querySelector(`[data-note="${it.id}"]`);if(t){t.value='';it.note='';t.focus();}return;}
+    case 'lb': S.lb=v;break;
+    case 'lbclose': S.lb=null;break;
+    case 'delphoto': if(confirmDel('Delete this photo?')){await delPhoto(S.lb);S.lb=null;}break;
+    case 'delvisit': if(confirmDel('Delete this visit and its photos?')){for(const p of [...vis.proof.arrival,...vis.proof.walk,...vis.proof.departure,...vis.items.flatMap(i=>i.photos)])await dbDel('photos',p.id);D.visits=D.visits.filter(x=>x.id!==vis.id);await save();S.view='list';}break;
+    case 'toreport': if(!vis.finished){vis.finished=tnow();await save();} S.view='report';break;
+    case 'toVisit': S.view=vis.status==='sent'?'list':'visit';break;
+    case 'resp': vis.responses[b.dataset.id]=vis.responses[b.dataset.id]===v?undefined:v;await save();break;
+    case 'share': await shareReport();return;
+    case 'copytext': try{await navigator.clipboard.writeText(summaryText(vis));toast('Summary copied');}catch(_){toast('Could not copy on this device');}return;
+    case 'print': window.print();return;
+    case 'marksent': vis.status='sent';await save();toast('Marked as sent');break;
+    case 'newhome': newHome();break;
+    case 'edithome': DRAFT=JSON.parse(JSON.stringify(home(v)));S.view='home';break;
+    case 'cancelhome': S.view='list';S.tab='homes';break;
+    case 'tpl': if(DRAFT.checklist.length&&!confirmDel('Replace this checklist with the template?'))return; DRAFT.tpl=v;DRAFT.checklist=TEMPLATES[v].items.map(([x,l])=>({area:x,label:l}));break;
+    case 'delitem': DRAFT.checklist.splice(+v,1);break;
+    case 'additem':{const ix=DRAFT.checklist.map(c=>c.area).lastIndexOf(v);DRAFT.checklist.splice(ix+1,0,{area:v,label:''});render();const ins=document.querySelectorAll('[data-ci]');const t=[...ins].find(x=>+x.dataset.ci===ix+1);if(t)t.focus();return;}
+    case 'addarea':{const n=$('#newarea').value.trim();if(!n)return;DRAFT.checklist.push({area:n,label:''});break;}
+    case 'delup': DRAFT.upkeep.splice(+v,1);break;
+    case 'addup': DRAFT.upkeep.push('');break;
+    case 'savehome':{const h=DRAFT;if(!h.client.trim()||!h.address.trim()){toast('Add a client name and address');return;}
+      h.checklist=h.checklist.filter(c=>c.label.trim());delete h.isNew;const ix=D.homes.findIndex(x=>x.id===h.id);if(ix>=0)D.homes[ix]=h;else D.homes.push(h);await save();toast('Home saved');S.view='list';S.tab='homes';break;}
+    case 'delhome': if(confirmDel('Delete this home? Past visit reports are kept.')){D.homes=D.homes.filter(x=>x.id!==DRAFT.id);await save();S.view='list';S.tab='homes';}break;
+    case 'export': await exportAll();toast('Backup downloaded');return;
+  }
+  render();
+});
+function confirmDel(msg){return window.confirm(msg);}
+document.addEventListener('input',async e=>{
+  const t=e.target, vis=visit();
+  if(t.dataset.note&&vis){vis.items.find(i=>i.id===t.dataset.note).note=t.value;clearTimeout(window._sv);window._sv=setTimeout(save,400);}
+  else if(t.dataset.f&&DRAFT){DRAFT[t.dataset.f]=t.value;}
+  else if(t.dataset.ci!==undefined&&DRAFT){DRAFT.checklist[+t.dataset.ci].label=t.value;}
+  else if(t.dataset.ui!==undefined&&DRAFT){DRAFT.upkeep[+t.dataset.ui]=t.value;}
+  else if(t.dataset.s){D.settings[t.dataset.s]=t.value;clearTimeout(window._sv);window._sv=setTimeout(save,400);}
+});
+document.addEventListener('change',async e=>{
+  const t=e.target;
+  if(t.dataset.import&&t.files[0]){try{await importAll(t.files[0]);toast('Backup restored');render();}catch(_){toast('That file is not a valid backup');}return;}
+  if(t.dataset.f==='plan'&&DRAFT){DRAFT.plan=t.value;return;}
+  const f=t.files&&t.files[0]; if(!f) return; const vis=visit(); if(!vis) return; const h=home(vis.homeId);
+  toast('Saving photo…');
+  const p=await stampPhoto(f,h);
+  if(t.dataset.proof){vis.proof[t.dataset.proof].push(p);}
+  else if(t.dataset.photo){const it=vis.items.find(i=>i.id===t.dataset.photo);if(t.dataset.tag)p.tag=t.dataset.tag;it.photos.push(p);if(!it.status)it.status='ok';}
+  await save(); render();
+});
+(async function init(){
+  try{
+    DB=await idb(); const saved=await dbGet('kv','data'); if(saved) D=saved;
+    const ph=await dbAll('photos'); for(const [k,v] of Object.entries(ph)) URLS[k]=URL.createObjectURL(v.blob);
+    if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
+  }catch(e){ document.body.insertAdjacentHTML('afterbegin','<p style="background:#FDECEA;padding:12px;margin:0">This browser can\'t save data here. Open the app from its web address (not as a file) in Safari or Chrome.</p>'); DB=null; }
+  render();
+})();
+</script>
+</body>
+</html>
