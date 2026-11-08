@@ -997,6 +997,7 @@ async function syncNow(manual){
   finally{SYNCING=false;}
 }
 const isTyping=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);};
+async function maybeClient(){try{if(ONTEAM===false&&sb&&USER){const {data}=await sb.from('client_access').select('*');if(data&&data.length){location.href='portal.html';return true;}}}catch(e){}return false;}
 async function loadTeam(){const {data,error}=await sb.from('team').select('*');if(error)throw error;TEAM=data||[];ONTEAM=TEAM.some(t=>t.email.toLowerCase()===(USER.email||'').toLowerCase());}
 const IS_OWNER=()=>TEAM.some(t=>t.email.toLowerCase()===(USER&&USER.email||'').toLowerCase()&&t.role==='owner');
 async function initCloud(){
@@ -1004,7 +1005,7 @@ async function initCloud(){
   sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
   await loadSY();
   const {data}=await sb.auth.getSession(); USER=data&&data.session?data.session.user:null;
-  if(USER){ if(navigator.onLine){try{await loadTeam();}catch(e){SYNC_ERR=e.message;ONTEAM=SY.onTeam||null;}} else ONTEAM=SY.onTeam||null; SY.onTeam=ONTEAM;await saveSY(); }
+  if(USER){ if(navigator.onLine){try{await loadTeam();}catch(e){SYNC_ERR=e.message;ONTEAM=SY.onTeam||null;}} else ONTEAM=SY.onTeam||null; SY.onTeam=ONTEAM;await saveSY(); await maybeClient(); }
   setInterval(()=>syncNow(),60000);
   window.addEventListener('online',()=>syncNow());
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow();});
@@ -1028,7 +1029,9 @@ function vLogin(){
 }
 function vNotTeam(){
   return `<div style="min-height:100vh;background:var(--dark);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:28px;gap:16px">
-  <h1 style="margin:0;font-size:24px">Almost there</h1><p style="color:#C9D8DA;line-height:1.55;margin:0">You're signed in as <b>${esc(USER.email)}</b>, but this email isn't on the team yet. Ask the owner to add it in <b>Settings › Team</b>, then tap "Check again."</p>
+  <h1 style="margin:0;font-size:24px">This is the team app</h1><p style="color:#C9D8DA;line-height:1.55;margin:0">You're signed in as <b>${esc(USER.email)}</b>.</p>
+  <div style="background:var(--card);color:var(--txt);border-radius:16px;padding:16px"><b>Are you a client?</b><p style="margin:6px 0 12px;line-height:1.5">Your reports and photos are in the client portal. Use the same email and password there.</p><a class="btn btn-pri btn-block" href="portal.html">Open the client portal</a></div>
+  <p style="color:#C9D8DA;line-height:1.55;margin:0"><b>Team member?</b> Ask the owner to add this email in <b>Settings › Team</b>, then tap "Check again."</p>
   ${SYNC_ERR?`<p style="color:#F0A374;font-size:13px">Details: ${esc(SYNC_ERR)}</p>`:''}
   <button class="btn btn-pri" data-act="recheck">Check again</button><button class="btn" style="background:none;color:#C9D8DA;border:2px solid #5E8790" data-act="export">Download a backup of this phone's data</button><button class="btn" style="background:none;color:#fff;border:2px solid #5E8790" data-act="signout">Sign out</button></div>`;
 }
@@ -1042,7 +1045,7 @@ async function doAuth(){
   if(!res.data.session){AUTH.msg='Check your email to confirm your account, then sign in.';AUTH.mode='in';render();return;}
   USER=res.data.session.user;
   try{await loadTeam();}catch(e){SYNC_ERR=e.message;ONTEAM=false;}
-  SY.onTeam=ONTEAM; if(SY.user!==USER.id){SY.user=USER.id;} await saveSY();
+  SY.onTeam=ONTEAM; if(SY.user!==USER.id){SY.user=USER.id;} await saveSY(); if(await maybeClient()) return;
   render(); if(ONTEAM){toast('Signed in. Syncing…');syncNow();}
 }
 function cloudSettings(){
