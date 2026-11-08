@@ -630,7 +630,7 @@ function vReport(){
   <div class="card"><p style="margin:0;font-size:15px;line-height:1.55">${fl.some(i=>i.status==='urgent')?'<b>Action needed:</b> we found an urgent issue and will call you.':fl.length?`<b>Your home is secure.</b> We noticed ${fl.length} thing${fl.length>1?'s':''} that will need attention soon. Reply YES and we'll take care of ${fl.length>1?'them':'it'}.`:'<b>Your home is secure and everything checked out.</b>'}</p></div>
   <h2 class="sec">Arrival & departure</h2><div class="card"><div class="gal">${[...v.proof.arrival.slice(0,1),...v.proof.departure.slice(0,1)].map(img).join('')}</div></div>
   ${fl.length?`<h2 class="sec">Recommended service</h2>${fl.map(i=>`<div class="rec ${i.status==='urgent'?'urg':''}"><h4>${i.status==='urgent'?'Urgent':'Soon'}: ${esc(i.label)}</h4><p>${esc(i.note||'See photo.')}</p><div class="gal">${i.photos.map(img).join('')}</div>
-   <div class="noprint" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="cap">Client's answer:</span>${['approved','declined'].map(r=>`<button class="btn btn-sm ${v.responses[i.id]===r?'btn-dark':'btn-out'}" data-act="resp" data-id="${i.id}" data-v="${r}">${r==='approved'?'Approved':'Not now'}</button>`).join('')}</div>
+   <div class="noprint" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="cap">Client's answer${v.clientReplies&&v.clientReplies[i.id]?' (from portal)':''}:</span>${['approved','declined'].map(r=>`<button class="btn btn-sm ${v.responses[i.id]===r?'btn-dark':'btn-out'}" data-act="resp" data-id="${i.id}" data-v="${r}">${r==='approved'?'Approved':'Not now'}</button>`).join('')}</div>
    ${v.responses[i.id]==='approved'?(v.charged&&v.charged[i.id]?`<p class="cap noprint" style="margin-top:8px;color:var(--green)">✓ ${money(v.charged[i.id])} added to ${esc(h.client)}'s next statement</p>`:`<div class="noprint" style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="number" inputmode="decimal" step="0.01" placeholder="Price ($)" id="rc-${i.id}" style="max-width:130px"><button class="btn btn-sm btn-dark" data-act="reccharge" data-id="${i.id}">Add to bill</button></div>`):''}</div>`).join('')}`:''}
   ${done.length?`<h2 class="sec">Serviced today: before & after</h2><div class="card">${done.map(i=>`<b>${esc(i.label)}</b>${i.note?`<div class="cap">${esc(i.note)}</div>`:''}<div class="gal" style="margin:6px 0 12px">${['before','after'].map(t=>(i.photos.filter(p=>p.tag===t).slice(0,1)).map(img).join('')).join('')}</div>`).join('')}</div>`:''}
   ${v.proof.walk.length?`<h2 class="sec">Walk-through photos</h2><div class="card"><div class="gal">${v.proof.walk.map(img).join('')}</div></div>`:''}
@@ -991,8 +991,8 @@ async function syncPhotos(){
 }
 async function syncNow(manual){
   if(!canSync()||SYNCING)return; SYNCING=true; SYNC_ERR='';
-  try{await pushNow();const ch=await pullNow();const ph=await syncPhotos();SY.lastSync=new Date().toISOString();await saveSY();
-    if((ch||ph)&&!isTyping())render(); if(manual)toast('Synced');}
+  try{await pushNow();const ch=await pullNow();const ph=await syncPhotos();let rp=false;try{await publishPending();rp=await pullResponses();}catch(e){SYNC_ERR='Portal: '+(e.message||e);}SY.lastSync=new Date().toISOString();await saveSY();
+    if((ch||ph||rp)&&!isTyping())render(); if(manual)toast('Synced');}
   catch(e){SYNC_ERR=(e&&e.message)||String(e);console.warn('sync',e);if(manual)toast('Sync problem: '+SYNC_ERR);}
   finally{SYNCING=false;}
 }
@@ -1121,6 +1121,7 @@ function vVisits(){
   if(!D.homes.length) return topbar('Visits',dayLabel(t))+`<main><div class="card"><b>Welcome!</b><p class="note" style="margin:6px 0 10px">Add your first home and its visit schedule. Visits then show up here automatically.</p><button class="btn btn-pri btn-block" data-act="newhome">Add a home</button></div></main>`+nav();
   return topbar('Visits',new Date().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'}))+`<main>
   ${me?`<div class="toggle" role="group" aria-label="Whose visits" style="display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:12px">${[['mine','My visits'],['all','Everyone']].map(([k,l])=>`<button data-act="scope" data-v="${k}" style="flex:1;border:none;border-radius:999px;padding:9px;font-weight:600;cursor:pointer;min-height:40px;${(S.scope||'mine')===k?'background:var(--dark);color:#fff':'background:none;color:var(--mut)'}">${l}</button>`).join('')}</div>`:''}
+  ${repliesSection()}
   ${overdue.length?`<h2 class="sec" style="color:var(--red)">Overdue (${overdue.length})</h2>${overdue.map(apptCard).join('')}`:''}
   <h2 class="sec">Today</h2>${today.length?today.map(apptCard).join(''):'<p class="note" style="margin:0 2px 8px">No visits scheduled today.</p>'}
   ${open.length?`<h2 class="sec">Other visits in progress</h2>${open.map(vcard).join('')}`:''}
@@ -1159,6 +1160,73 @@ function scheduleEditor(h){
 }
 function completeApptFor(v){ensureSched();const a=D.appts.find(x=>x.visitId===v.id);if(a&&a.status!=='done'){a.status='done';}}
 
+/* ================= CLIENT PORTAL PUBLISHING (Phase 3) ================= */
+const PORTAL_URL=location.origin+location.pathname.replace(/[^/]*$/,'')+'portal.html';
+function bizInfo(){const s=D.settings;return {biz:s.biz||'TwoHome Services',phone:s.phone||'',email:s.email||'',payLink:s.payLink||'',autopayLink:s.autopayLink||''};}
+function reportSnapshot(v){
+  const h=home(v.homeId)||{}; const P=a=>(a||[]).map(p=>({id:p.id,time:p.time||'',tag:p.tag||''}));
+  return {visitId:v.id,date:v.date,started:v.started,finished:v.finished,by:v.by||'',address:h.address||'',client:h.client||'',plan:PLANS[h.plan]||'',
+    items:v.items.map(i=>({id:i.id,area:i.area,label:i.label,status:i.status,note:i.note||'',photos:P(i.photos)})),
+    arrival:P(v.proof.arrival),walk:P(v.proof.walk),departure:P(v.proof.departure),answers:v.responses||{},biz:bizInfo()};
+}
+function statementSnapshot(s){return {num:s.num,period:s.period,date:s.date,lines:s.lines,total:s.total,status:s.status,paidDate:s.paidDate||null,biz:bizInfo()};}
+async function publishPending(){
+  SY.pub=SY.pub||{}; SY.access=SY.access||{};
+  // client access (emails per home)
+  for(const h of D.homes){
+    const emails=(h.clientEmails||'').split(/[,\s;]+/).map(e=>e.trim().toLowerCase()).filter(e=>e.includes('@'));
+    const key=emails.sort().join(',');
+    if(SY.access[h.id]===key) continue;
+    const {data,error}=await sb.from('client_access').select('*').eq('home_id',h.id); if(error) throw error;
+    const have=(data||[]).map(r=>r.email.toLowerCase());
+    const add=emails.filter(e=>!have.includes(e)).map(e=>({email:e,home_id:h.id}));
+    if(add.length){const r=await sb.from('client_access').insert(add);if(r.error)throw r.error;}
+    for(const e of have.filter(e=>!emails.includes(e))){const r=await sb.from('client_access').delete().eq('email',e).eq('home_id',h.id);if(r.error)throw r.error;}
+    SY.access[h.id]=key; await saveSY();
+  }
+  // reports for sent visits, statements
+  const docs=[];
+  D.visits.filter(v=>v.status==='sent'&&home(v.homeId)).forEach(v=>docs.push({id:'rep-'+v.id,home_id:v.homeId,kind:'report',data:reportSnapshot(v)}));
+  (D.statements||[]).filter(s=>home(s.homeId)).forEach(s=>docs.push({id:'st-'+s.id,home_id:s.homeId,kind:'statement',data:statementSnapshot(s)}));
+  for(const d of docs){
+    const h=hsh(JSON.stringify(d.data)); if(SY.pub[d.id]===h) continue;
+    if(d.kind==='report'){const ids=[...d.data.arrival,...d.data.walk,...d.data.departure,...d.data.items.flatMap(i=>i.photos)].map(p=>({photo_id:p.id,home_id:d.home_id}));
+      if(ids.length){const r=await sb.from('client_photos').upsert(ids);if(r.error)throw r.error;}}
+    const {error}=await sb.from('client_docs').upsert([{id:d.id,home_id:d.home_id,kind:d.kind,data:d.data}]); if(error) throw error;
+    SY.pub[d.id]=h; await saveSY();
+  }
+}
+async function pullResponses(){
+  let q=sb.from('client_responses').select('*'); if(SY.respPull) q=q.gte('created_at',SY.respPull);
+  const {data,error}=await q.order('created_at',{ascending:true}); if(error) throw error;
+  SY.respSeen=SY.respSeen||{}; let changed=false;
+  for(const r of data||[]){
+    if(SY.respSeen[r.id]) continue; SY.respSeen[r.id]=1;
+    const v=D.visits.find(x=>x.id===r.visit_id); if(v){v.responses=v.responses||{};v.responses[r.item_id]=r.answer;v.clientReplies=v.clientReplies||{};v.clientReplies[r.item_id]={answer:r.answer,at:r.created_at,seen:false};changed=true;}
+    if(!SY.respPull||r.created_at>SY.respPull) SY.respPull=r.created_at;
+  }
+  if(changed){await dbPut('kv','data',D);schedulePush();}
+  await saveSY(); return changed;
+}
+function newReplies(){const out=[];D.visits.forEach(v=>Object.entries(v.clientReplies||{}).forEach(([iid,r])=>{if(!r.seen){const it=v.items.find(i=>i.id===iid);if(it)out.push({v,it,r});}}));return out;}
+function repliesSection(){
+  const n=newReplies(); if(!n.length) return '';
+  return `<h2 class="sec" style="color:var(--green)">Client replies (${n.length})</h2>${n.map(({v,it,r})=>{const h=home(v.homeId)||{client:''};return `<button class="listbtn" data-act="openreply" data-v="${v.id}" style="border-color:${r.answer==='approved'?'var(--green)':'var(--line)'}"><div class="row"><h3>${esc(h.client)}</h3><span class="badge ${r.answer==='approved'?'b-done':'b-todo'}">${r.answer==='approved'?'APPROVED':'NOT NOW'}</span></div><p>${esc(it.label)}</p><p>${r.answer==='approved'?'Tap to add the price to their next statement.':'Tap to view.'}</p></button>`}).join('')}`;
+}
+function portalEditor(h){
+  return `<h2 class="sec">Client portal</h2><div class="card">
+   <label class="f" for="f-clientEmails" style="margin-top:0">Client email(s) that can see this home</label>
+   <input id="f-clientEmails" type="text" data-f="clientEmails" value="${esc(h.clientEmails||'')}" placeholder="e.g., grandma@email.com, grandpa@email.com">
+   <p class="note" style="margin:6px 0 0">Separate several emails with commas. A client with two homes can use the same email on both. They sign in at the portal link below (they'll create a password the first time).</p>
+   <p style="margin:10px 0 0;font-size:14px;word-break:break-all"><b>Portal link:</b> <a href="${PORTAL_URL}" target="_blank" rel="noopener">${PORTAL_URL}</a></p>
+   <button class="btn btn-sm btn-out" style="margin-top:8px" data-act="shareportal" data-v="${h.id}">Send the portal link to the client</button></div>`;
+}
+async function sharePortal(hid){
+  const h=home(hid)||DRAFT; const first=(h.client||'').split(/[ &,]/)[0];
+  const text=`Hi ${first}, you can now see all of your home watch reports and photos anytime here: ${PORTAL_URL}\n\nTap "First time here? Create your account" and use this email: ${(h.clientEmails||'').split(',')[0].trim()}\n\n- ${D.settings.biz||'TwoHome Services'}`;
+  try{ if(navigator.share) await navigator.share({text,title:'Your home watch portal'}); else {await navigator.clipboard.writeText(text);toast('Message copied');} }catch(e){}
+}
+
 /* ================= HOMES ================= */
 function vHomes(){
   return topbar('Homes',`${D.homes.length} home${D.homes.length!==1?'s':''}`)+`<main>
@@ -1179,6 +1247,7 @@ function vHome(){
    ${f('emergency','Emergency spending OK up to ($)','number')}
    <label class="f" for="f-notes">Notes for the visit</label><textarea id="f-notes" rows="3" data-f="notes" placeholder="Shutoff locations, thermostat setting, quirks of this house">${esc(h.notes)}</textarea></div>
   ${scheduleEditor(h)}
+  ${portalEditor(h)}
   ${profileEditor(h)}
   <h2 class="sec">Checklist for this home</h2>
   <div class="card"><p class="note" style="margin:0 0 8px">Start from a template, then rename, remove or add items to fit this house.</p>
@@ -1296,6 +1365,8 @@ document.addEventListener('click',async e=>{
     case 'apptsave':{const a=D.appts.find(x=>x.id===S.apptId);const nd=$('#ap-date').value;if(nd&&nd!==a.date){a.date=nd;a.moved=true;}a.assignee=$('#ap-who').value;await save();toast('Saved');break;}
     case 'skip': if(confirmDel('Skip this visit? It will be marked as skipped.')){const a=D.appts.find(x=>x.id===S.apptId);a.status='skipped';await save();S.view='list';}break;
     case 'unskip':{const a=D.appts.find(x=>x.id===S.apptId);a.status='planned';await save();break;}
+    case 'openreply':{S.visitId=v;S.view='report';const vv=D.visits.find(x=>x.id===v);Object.values(vv.clientReplies||{}).forEach(r=>r.seen=true);await save();break;}
+    case 'shareportal': await sharePortal(v);return;
     case 'export': await exportAll();toast('Backup downloaded');return;
   }
   render();

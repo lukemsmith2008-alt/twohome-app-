@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0E2F38">
+<title>Your Home Watch Portal</title>
+<style>
+:root{--dark:#0E2F38;--sand:#F6F2EA;--mist:#E7EFEC;--card:#FCFBF8;--line:#DCD6CB;--txt:#1C2B30;--mut:#55666B;--teal:#1D6B76;--org:#B8541C;--orgbg:#FFF1E6;--red:#B42318;--redbg:#FDECEA;--green:#1E7B4F;--greenbg:#E6F4EC;--peach:#F0A374}
+*{box-sizing:border-box}
+body{margin:0;background:var(--sand);font-family:-apple-system,Inter,Segoe UI,Roboto,Arial,sans-serif;color:var(--txt);font-size:17px;-webkit-text-size-adjust:100%}
+button,input{font:inherit}
+.wrap{max-width:640px;margin:0 auto;min-height:100vh}
+header{background:var(--dark);color:#fff;padding:calc(18px + env(safe-area-inset-top)) 20px 20px}
+header .k{margin:0;color:var(--peach);font-weight:700;letter-spacing:1.5px;font-size:13px}
+header h1{margin:6px 0 0;font-size:24px;line-height:1.2}
+header p{margin:6px 0 0;color:#C9D8DA;font-size:15px}
+.back{background:none;border:none;color:#fff;font-size:16px;padding:6px 0;margin-bottom:6px;cursor:pointer;min-height:44px}
+main{padding:16px 16px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
+h2{font-size:14px;letter-spacing:1px;color:var(--teal);text-transform:uppercase;margin:22px 4px 10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:none;border-radius:999px;padding:13px 20px;font-weight:600;font-size:16px;cursor:pointer;min-height:48px;text-decoration:none}
+.pri{background:var(--org);color:#fff}.dark{background:var(--dark);color:#fff}.out{background:#fff;border:2px solid var(--dark);color:var(--dark)}.block{width:100%}
+label{display:block;font-weight:600;font-size:15px;margin:12px 0 6px}
+input{width:100%;border:1px solid #A9B4B6;border-radius:12px;padding:12px 14px;font-size:17px;background:#fff}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+.b-ok{background:var(--greenbg);color:var(--green)}.b-soon{background:var(--orgbg);color:var(--org)}.b-urg{background:var(--redbg);color:var(--red)}.b-gray{background:var(--mist);color:var(--dark)}
+.item{display:block;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:10px;cursor:pointer;color:inherit}
+.item h3{margin:0 0 4px;font-size:17px}.item p{margin:0;color:var(--mut);font-size:15px;line-height:1.45}
+.rec{background:var(--orgbg);border:1px solid #E9B48F;border-radius:16px;padding:16px;margin-bottom:12px}.rec.urg{background:var(--redbg);border-color:#F1A7A0}
+.rec h3{margin:0 0 6px;font-size:17px}.rec p{margin:0 0 10px;line-height:1.5}
+.acts{display:flex;gap:10px;flex-wrap:wrap}
+.gal{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gal figure{margin:0}.gal img,.ph{width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:12px;background:var(--mist);display:block;border:1px solid var(--line)}
+figcaption{font-size:13px;color:var(--mut);margin-top:4px}
+.score{display:flex;gap:10px;margin-top:14px}.score div{flex:1;background:#163E49;border-radius:12px;padding:10px;text-align:center;font-size:13px;color:#C9D8DA}.score b{display:block;font-size:24px;color:#fff}
+ul.list{list-style:none;margin:0;padding:0}ul.list li{padding:9px 0;border-top:1px solid var(--line);font-size:16px}ul.list li:first-child{border-top:none}
+.ok{color:var(--green);font-weight:700}
+.note{color:var(--mut);font-size:14px;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:15px}td,th{padding:10px 6px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--mut);font-size:13px}
+.toast{position:fixed;left:50%;bottom:30px;transform:translateX(-50%);background:var(--dark);color:#fff;padding:14px 20px;border-radius:12px;font-size:15px;z-index:9;max-width:90%;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+.lb{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;gap:14px}
+.lb img{max-width:100%;max-height:78vh;border-radius:10px}
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script src="./supabase.js"></script>
+<script>
+const SB_URL='https://hbgsyaofudiuajobwfaa.supabase.co', SB_KEY='sb_publishable_hcjxXEffzVMVgaGlfISj-g_ay_H1yFQ';
+const sb=window.supabase?window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}}):null;
+const P={user:null,homeIds:[],docs:[],answers:{},view:'home',homeId:null,docId:null,mode:'in',msg:'',email:'',lb:null,loading:true};
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const money=n=>'$'+(Number(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+const dfmt=iso=>new Date(iso).toLocaleDateString([], {weekday:'short',month:'long',day:'numeric',year:'numeric'});
+function toast(m){const t=document.createElement('div');t.className='toast';t.textContent=m;document.body.appendChild(t);setTimeout(()=>t.remove(),3200);}
+const URLS={},LOADING={};
+async function loadPhoto(id){if(URLS[id]||LOADING[id])return;LOADING[id]=1;const {data,error}=await sb.storage.from('photos').download(id+'.jpg');if(!error&&data){URLS[id]=URL.createObjectURL(data);document.querySelectorAll(`img[data-pid="${id}"]`).forEach(i=>i.src=URLS[id]);}}
+const img=(p,cap)=>`<figure><img class="ph" data-pid="${p.id}" ${URLS[p.id]?`src="${URLS[p.id]}"`:''} alt="${esc(cap||'Photo')}" data-act="lb" role="button" tabindex="0"><figcaption>${esc(cap||'')}${p.time?' · '+esc(p.time):''}</figcaption></figure>`;
+const reports=hid=>P.docs.filter(d=>d.kind==='report'&&d.home_id===hid).sort((a,b)=>b.data.date.localeCompare(a.data.date));
+const statements=hid=>P.docs.filter(d=>d.kind==='statement'&&d.home_id===hid).sort((a,b)=>b.data.date.localeCompare(a.data.date));
+const answerFor=(r,iid)=>P.answers[r.data.visitId+'|'+iid]||(r.data.answers||{})[iid];
+const flaggedOf=r=>r.data.items.filter(i=>i.status==='soon'||i.status==='urgent');
+const bizOf=hid=>{const d=P.docs.find(x=>x.home_id===hid);return d?d.data.biz:{biz:'Your home watch team'};};
+const addrOf=hid=>{const d=P.docs.find(x=>x.home_id===hid&&x.data.address);return d?d.data.address:'Your home';};
+
+function vLogin(){
+  return `<header><p class="k">HOME WATCH PORTAL</p><h1>${P.mode==='in'?'Sign in to see your home':'Create your account'}</h1><p>${P.mode==='in'?'Use the email and password you set up.':'Use the email address your home watch team has on file, and choose a password (at least 8 characters).'}</p></header>
+  <main><div class="card"><label for="em">Email</label><input id="em" type="email" autocomplete="email" value="${esc(P.email)}"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${P.mode==='in'?'current-password':'new-password'}">
+  ${P.msg?`<p style="color:var(--red);margin:12px 0 0">${esc(P.msg)}</p>`:''}
+  <button class="btn pri block" style="margin-top:16px" data-act="auth">${P.mode==='in'?'Sign in':'Create account'}</button>
+  <button class="btn block" style="background:none;color:var(--teal);margin-top:6px" data-act="mode">${P.mode==='in'?'First time here? Create your account':'Already have an account? Sign in'}</button></div></main>`;
+}
+function vHomeList(){
+  return `<header><p class="k">HOME WATCH PORTAL</p><h1>Your homes</h1><p>${esc(P.user.email)}</p></header><main>
+  ${P.homeIds.map(hid=>{const r=reports(hid)[0];const pend=reports(hid).flatMap(x=>flaggedOf(x).filter(i=>!answerFor(x,i.id))).length;return `<button class="item" data-act="home" data-v="${hid}"><div class="row"><h3>${esc(addrOf(hid))}</h3>${pend?`<span class="badge b-soon">${pend} TO REVIEW</span>`:''}</div><p>${r?'Last visit '+dfmt(r.data.date):'No reports yet'}</p></button>`;}).join('')}
+  <button class="btn out block" data-act="signout" style="margin-top:20px">Sign out</button></main>`;
+}
+function vHome(){
+  const hid=P.homeId, rs=reports(hid), ss=statements(hid), b=bizOf(hid);
+  const pending=rs.flatMap(r=>flaggedOf(r).filter(i=>!answerFor(r,i.id)).map(i=>({r,i})));
+  const due=ss.filter(s=>s.data.status!=='paid'&&s.data.total>0);
+  const last=rs[0];
+  return `<header>${P.homeIds.length>1?'<button class="back" data-act="homes">‹ All homes</button>':''}<p class="k">${esc((b.biz||'').toUpperCase())}</p><h1>${esc(addrOf(hid))}</h1><p>${last?'Last checked '+dfmt(last.data.date)+(last.data.by?' by '+esc(last.data.by):''):'Your first report will appear here after our next visit.'}</p></header><main>
+  ${last?`<div class="card" style="background:${flaggedOf(last).some(i=>i.status==='urgent')?'var(--redbg)':flaggedOf(last).length?'var(--orgbg)':'var(--greenbg)'};border:none"><b style="font-size:18px">${flaggedOf(last).some(i=>i.status==='urgent')?'Action needed':'Your home is secure'}</b><p style="margin:6px 0 0;line-height:1.5">${flaggedOf(last).length?`At our last visit we noted ${flaggedOf(last).length} item${flaggedOf(last).length>1?'s':''} needing attention.`:'Everything checked out at our last visit.'}</p><button class="btn dark" style="margin-top:12px" data-act="report" data-v="${last.id}">View latest report</button></div>`:''}
+  ${pending.length?`<h2>Needs your OK (${pending.length})</h2>${pending.map(({r,i})=>recCard(r,i)).join('')}`:''}
+  ${due.length?`<h2>Amount due</h2>${due.map(s=>`<button class="item" data-act="stmt" data-v="${s.id}" style="border-color:var(--org)"><div class="row"><h3>${esc(s.data.period)}</h3><b>${money(s.data.total)}</b></div><p>Statement ${esc(s.data.num)} · tap to view and pay</p></button>`).join('')}`:''}
+  <h2>Visit reports</h2>${rs.length?rs.map(r=>{const f=flaggedOf(r).length;return `<button class="item" data-act="report" data-v="${r.id}"><div class="row"><h3>${dfmt(r.data.date)}</h3><span class="badge ${f?'b-soon':'b-ok'}">${f?f+' NOTED':'ALL GOOD'}</span></div><p>${esc(r.data.started)}–${esc(r.data.finished||'')}${r.data.by?' · '+esc(r.data.by):''}</p></button>`}).join(''):'<p class="note" style="margin:0 4px">No reports yet.</p>'}
+  ${ss.length?`<h2>Statements</h2>${ss.map(s=>`<button class="item" data-act="stmt" data-v="${s.id}"><div class="row"><h3>${esc(s.data.period)}</h3><span class="badge ${s.data.status==='paid'||!s.data.total?'b-ok':'b-soon'}">${s.data.status==='paid'||!s.data.total?'PAID':'DUE '+money(s.data.total)}</span></div><p>Statement ${esc(s.data.num)}</p></button>`).join('')}`:''}
+  <p class="note" style="margin:24px 4px 0">Questions? ${[b.phone,b.email].filter(Boolean).map(esc).join(' · ')||'Contact your home watch team.'}</p>
+  ${P.homeIds.length===1?'<button class="btn out block" data-act="signout" style="margin-top:20px">Sign out</button>':''}</main>${lb()}`;
+}
+function recCard(r,i){
+  const a=answerFor(r,i.id);
+  return `<div class="rec ${i.status==='urgent'?'urg':''}"><h3>${i.status==='urgent'?'Urgent':'Recommended'}: ${esc(i.label)}</h3><p>${esc(i.note||'See photo.')}</p>
+   ${i.photos.length?`<div class="gal" style="margin-bottom:12px">${i.photos.map(p=>img(p,i.label)).join('')}</div>`:''}
+   <div class="acts">${a?`<b>${a==='approved'?"✓ You approved this. We'll confirm the price before doing the work.":'You chose "Not now." We will keep an eye on it.'}</b>`:
+   `<button class="btn dark" data-act="answer" data-r="${r.id}" data-i="${i.id}" data-v="approved">Yes, take care of it</button><button class="btn out" data-act="answer" data-r="${r.id}" data-i="${i.id}" data-v="declined">Not now</button>`}</div></div>`;
+}
+function vReport(){
+  const r=P.docs.find(d=>d.id===P.docId); const d=r.data; const f=flaggedOf(r).sort(a=>a.status==='urgent'?-1:1);
+  const done=d.items.filter(i=>i.status==='done'), ok=d.items.filter(i=>i.status==='ok');
+  return `<header><button class="back" data-act="home" data-v="${r.home_id}">‹ Back</button><p class="k">${esc((d.biz.biz||'').toUpperCase())} · VISIT REPORT</p><h1>${esc(d.address)}</h1><p>${dfmt(d.date)} · ${esc(d.started)}–${esc(d.finished||'')}${d.by?'<br>Checked by '+esc(d.by):''}</p>
+   <div class="score"><div><b>${ok.length+done.length}</b>All good</div><div><b>${done.length}</b>Serviced</div><div><b>${f.length}</b>Need attention</div></div></header><main>
+  ${d.arrival.length||d.departure.length?`<h2>Arrival &amp; departure</h2><div class="card"><div class="gal">${d.arrival.slice(0,1).map(p=>img(p,'Arrival')).join('')}${d.departure.slice(0,1).map(p=>img(p,'Departure')).join('')}</div></div>`:''}
+  ${f.length?`<h2>Recommended service</h2>${f.map(i=>recCard(r,i)).join('')}`:''}
+  ${done.length?`<h2>Serviced today</h2><div class="card">${done.map(i=>`<b>${esc(i.label)}</b>${i.note?`<p class="note" style="margin:4px 0 8px">${esc(i.note)}</p>`:''}<div class="gal" style="margin:8px 0 14px">${['before','after'].map(t=>i.photos.filter(p=>p.tag===t).slice(0,1).map(p=>img(p,t==='before'?'Before':'After')).join('')).join('')}</div>`).join('')}</div>`:''}
+  ${d.walk.length?`<h2>Walk-through photos</h2><div class="card"><div class="gal">${d.walk.map(p=>img(p,'Walk-through')).join('')}</div></div>`:''}
+  <h2>Checked and OK (${ok.length})</h2><div class="card"><ul class="list">${ok.map(i=>`<li><span class="ok">✓</span> ${esc(i.label)}${i.note?` <span class="note">· ${esc(i.note)}</span>`:''}</li>`).join('')}</ul></div>
+  <p class="note" style="margin:16px 4px">Every photo was taken during this visit and is stamped with the date, time and address.</p></main>${lb()}`;
+}
+function vStmt(){
+  const s=P.docs.find(d=>d.id===P.docId); const d=s.data; const paid=d.status==='paid'||!d.total;
+  return `<header><button class="back" data-act="home" data-v="${s.home_id}">‹ Back</button><p class="k">${esc((d.biz.biz||'').toUpperCase())} · STATEMENT ${esc(d.num)}</p><h1>${esc(d.period)}</h1><p>Issued ${dfmt(d.date)}</p></header><main>
+  <div class="card"><table><tr><th>Description</th><th style="text-align:right">Amount</th></tr>${d.lines.map(l=>`<tr><td>${esc(l.desc)}${l.autopay?'<br><span class="note" style="color:var(--green)">Paid by autopay</span>':''}</td><td style="text-align:right;${l.autopay?'color:var(--mut)':'font-weight:700'}">${money(l.amount)}</td></tr>`).join('')}</table>
+   <div class="row" style="margin-top:14px"><b>${paid?'Paid':'Amount due'}</b><b style="font-size:24px">${money(d.total)}</b></div></div>
+  ${!paid&&d.biz.payLink?`<a class="btn pri block" href="${esc(d.biz.payLink)}" target="_blank" rel="noopener">Pay ${money(d.total)} online</a><p class="note" style="text-align:center">Pay by card or bank transfer. Bank transfer helps us keep prices low.</p>`:''}
+  ${paid?`<div class="card" style="background:var(--greenbg);border:none"><b>✓ Paid${d.paidDate?' on '+dfmt(d.paidDate):''}.</b> Thank you!</div>`:''}
+  ${d.biz.autopayLink?`<div class="card"><b>Autopay</b><p class="note" style="margin:6px 0 10px">Have your monthly plan paid automatically.</p><a class="btn out" href="${esc(d.biz.autopayLink)}" target="_blank" rel="noopener">Set up autopay</a></div>`:''}
+  </main>`;
+}
+const lb=()=>P.lb&&URLS[P.lb]?`<div class="lb" role="dialog" aria-label="Photo"><img src="${URLS[P.lb]}" alt="Photo"><button class="btn out" data-act="lbclose" style="background:#fff">Close</button></div>`:'';
+function render(){
+  let h;
+  if(!sb) h=`<main><div class="card">The portal can't load right now. Please check your internet connection and refresh.</div></main>`;
+  else if(P.loading) h=`<main><p class="note">Loading…</p></main>`;
+  else if(!P.user) h=vLogin();
+  else if(!P.homeIds.length) h=`<header><p class="k">HOME WATCH PORTAL</p><h1>Almost there</h1><p>${esc(P.user.email)}</p></header><main><div class="card"><p style="margin:0;line-height:1.55">We couldn't find a home linked to this email yet. Please contact your home watch team and make sure they have this exact email address on file.</p><button class="btn dark" style="margin-top:14px" data-act="reload">Check again</button></div><button class="btn out block" data-act="signout">Sign out</button></main>`;
+  else if(P.view==='report') h=vReport(); else if(P.view==='stmt') h=vStmt();
+  else if(P.view==='home'&&P.homeId) h=vHome(); else h=vHomeList();
+  $('#app').innerHTML=h;
+  document.querySelectorAll('img[data-pid]:not([src])').forEach(i=>loadPhoto(i.dataset.pid));
+}
+async function load(){
+  const a=await sb.from('client_access').select('*'); const d=await sb.from('client_docs').select('*'); const r=await sb.from('client_responses').select('*');
+  P.homeIds=[...new Set((a.data||[]).map(x=>x.home_id))]; P.docs=d.data||[]; P.answers={};
+  (r.data||[]).forEach(x=>P.answers[x.visit_id+'|'+x.item_id]=x.answer);
+  if(P.homeIds.length===1){P.homeId=P.homeIds[0];P.view='home';}
+}
+document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v;
+  if(a==='auth'){const em=$('#em').value.trim(),pw=$('#pw').value;P.email=em;if(!em||pw.length<8){P.msg='Enter your email and a password of at least 8 characters.';return render();}
+    const res=P.mode==='in'?await sb.auth.signInWithPassword({email:em,password:pw}):await sb.auth.signUp({email:em,password:pw});
+    if(res.error){P.msg=res.error.message==='Invalid login credentials'?'That email and password don\'t match. First time here? Tap "Create your account."':res.error.message;return render();}
+    if(!res.data.session){P.msg='Check your email to confirm your account, then sign in.';P.mode='in';return render();}
+    P.user=res.data.session.user;P.msg='';P.loading=true;render();await load();P.loading=false;}
+  else if(a==='mode'){P.mode=P.mode==='in'?'up':'in';P.msg='';}
+  else if(a==='signout'){await sb.auth.signOut();P.user=null;P.docs=[];P.homeIds=[];P.view='home';P.homeId=null;}
+  else if(a==='reload'){P.loading=true;render();await load();P.loading=false;}
+  else if(a==='homes'){P.view='home';P.homeId=null;}
+  else if(a==='home'){P.view='home';P.homeId=v;}
+  else if(a==='report'){P.view='report';P.docId=v;window.scrollTo(0,0);}
+  else if(a==='stmt'){P.view='stmt';P.docId=v;window.scrollTo(0,0);}
+  else if(a==='lb'){P.lb=b.dataset.pid;}
+  else if(a==='lbclose'){P.lb=null;}
+  else if(a==='answer'){const r=P.docs.find(d=>d.id===b.dataset.r);const {error}=await sb.from('client_responses').insert({home_id:r.home_id,visit_id:r.data.visitId,item_id:b.dataset.i,answer:v});
+    if(error){toast('Sorry, that didn\'t go through. Please try again.');return;}
+    P.answers[r.data.visitId+'|'+b.dataset.i]=v;toast(v==='approved'?'Thank you! We\'ll confirm the price before doing the work.':'Got it. We\'ll keep an eye on it.');}
+  render();
+});
+(async()=>{
+  if(sb){const {data}=await sb.auth.getSession();P.user=data&&data.session?data.session.user:null;if(P.user){try{await load();}catch(e){}}}
+  P.loading=false;render();
+})();
+</script>
+</body>
+</html>
