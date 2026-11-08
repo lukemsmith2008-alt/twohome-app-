@@ -1033,13 +1033,14 @@ function vLogin(){
    ${AUTH.msg?`<p style="color:var(--red);font-size:14px;margin:10px 0 0">${esc(AUTH.msg)}</p>`:''}
    <button class="btn btn-pri btn-block" style="margin-top:14px" data-act="auth">${AUTH.mode==='in'?'Sign in':'Create account'}</button>
    <button class="btn btn-block" style="margin-top:6px;background:none;color:var(--teal)" data-act="authmode">${AUTH.mode==='in'?'New team member? Create an account':'Already have an account? Sign in'}</button></div>
-  ${!navigator.onLine?'<p style="color:#F0A374;font-size:14px">You are offline. Connect to the internet to sign in.</p>':''}</div>`;
+  ${!navigator.onLine?'<p style="color:#F0A374;font-size:14px">You are offline. Connect to the internet to sign in.</p>':''}
+  <button class="btn btn-block" style="background:none;color:#C9D8DA;border:2px solid #5E8790" data-act="export">Download a backup of this phone's data</button></div>`;
 }
 function vNotTeam(){
   return `<div style="min-height:100vh;background:var(--dark);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:28px;gap:16px">
   <h1 style="margin:0;font-size:24px">Almost there</h1><p style="color:#C9D8DA;line-height:1.55;margin:0">You're signed in as <b>${esc(USER.email)}</b>, but this email isn't on the team yet. Ask the owner to add it in <b>Settings › Team</b>, then tap "Check again."</p>
   ${SYNC_ERR?`<p style="color:#F0A374;font-size:13px">Details: ${esc(SYNC_ERR)}</p>`:''}
-  <button class="btn btn-pri" data-act="recheck">Check again</button><button class="btn" style="background:none;color:#fff;border:2px solid #5E8790" data-act="signout">Sign out</button></div>`;
+  <button class="btn btn-pri" data-act="recheck">Check again</button><button class="btn" style="background:none;color:#C9D8DA;border:2px solid #5E8790" data-act="export">Download a backup of this phone's data</button><button class="btn" style="background:none;color:#fff;border:2px solid #5E8790" data-act="signout">Sign out</button></div>`;
 }
 async function doAuth(){
   const email=$('#au-email').value.trim(), pw=$('#au-pass').value; AUTH.email=email;
