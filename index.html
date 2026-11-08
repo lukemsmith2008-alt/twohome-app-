@@ -86,6 +86,7 @@ textarea,input[type=text],input[type=tel],input[type=email],input[type=number],s
 </head>
 <body>
 <div class="shell" id="app"></div>
+<script src="./supabase.js"></script>
 <script>/* jsPDF 2.5.1 (MIT license) */
 /** @license
  *
@@ -500,7 +501,7 @@ async function dbAll(store){return new Promise((res)=>{const out={};const r=DB.t
 let D={settings:{biz:'TwoHome Services',me:'',phone:'',email:''},homes:[],visits:[]};
 const URLS={}; // photo id -> object URL
 const uid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
-async function save(){await dbPut('kv','data',D);}
+async function save(){await dbPut('kv','data',D);try{schedulePush();}catch(e){}}
 const TEMPLATES={
  indy:{name:'Indianapolis (winter)',items:[
   ['Exterior','Doors & locks secure'],['Exterior','Windows intact, no signs of entry'],['Exterior','Roof & gutters (damage, ice dams)'],['Exterior','Walkways & driveway (snow/ice)'],['Exterior','Mail, packages & flyers collected'],
@@ -550,7 +551,7 @@ async function delPhoto(pid){
   const v=visit(); if(!v) return;
   v.items.forEach(i=>i.photos=i.photos.filter(p=>p.id!==pid));
   ['arrival','walk','departure'].forEach(k=>v.proof[k]=v.proof[k].filter(p=>p.id!==pid));
-  await dbDel('photos',pid); await save();
+  await dbDel('photos',pid); await save(); try{if(canSync())sb.storage.from('photos').remove([pid+'.jpg']);}catch(e){}
 }
 
 /* ================= Shared bits ================= */
@@ -582,7 +583,7 @@ async function startVisit(hid){
   const h=home(hid);
   const items=h.checklist.map(c=>({id:uid(),area:c.area,label:c.label,status:null,note:'',photos:[]}))
     .concat(h.upkeep.filter(u=>u.trim()).map(u=>({id:uid(),area:'Upkeep tasks',label:u,status:null,note:'',photos:[]})));
-  const v={id:uid(),homeId:hid,date:new Date().toISOString(),startISO:new Date().toISOString(),started:tnow(),finished:null,status:'progress',items,proof:{arrival:[],walk:[],departure:[]},responses:{}};
+  const v={id:uid(),homeId:hid,by:D.settings.me||(USER&&USER.email)||'',date:new Date().toISOString(),startISO:new Date().toISOString(),started:tnow(),finished:null,status:'progress',items,proof:{arrival:[],walk:[],departure:[]},responses:{}};
   D.visits.push(v); await save(); S.visitId=v.id; S.view='visit'; S.reveal=false; toast('Visit started: arrival time saved');
 }
 function missing(v){
@@ -636,7 +637,7 @@ function vReport(){
   const img=p=>URLS[p.id]?`<img src="${URLS[p.id]}" alt="Photo">`:'';
   return topbar('Client report',`${h.client} · ${dfmt(v.date)}`,'toVisit')+`<main>
   <div class="rep-head"><span class="badge" style="background:#F0A374;color:var(--dark)">${esc(st.biz.toUpperCase())} · VISIT REPORT</span>
-   <h2>${esc(h.address)}</h2><p>${dfmt(v.date)} · Arrived ${v.started} · Left ${v.finished}${st.me?`<br>Checked by ${esc(st.me)}`:''} · ${allP.length} time-stamped photos</p>
+   <h2>${esc(h.address)}</h2><p>${dfmt(v.date)} · Arrived ${v.started} · Left ${v.finished}${(v.by||st.me)?`<br>Checked by ${esc(v.by||st.me)}`:''} · ${allP.length} time-stamped photos</p>
    <div class="score"><div><b>${ok.length+done.length}</b>All good</div><div><b>${done.length}</b>Serviced</div><div><b>${fl.length}</b>Need attention</div></div></div>
   <div class="card"><p style="margin:0;font-size:15px;line-height:1.55">${fl.some(i=>i.status==='urgent')?'<b>Action needed:</b> we found an urgent issue and will call you.':fl.length?`<b>Your home is secure.</b> We noticed ${fl.length} thing${fl.length>1?'s':''} that will need attention soon. Reply YES and we'll take care of ${fl.length>1?'them':'it'}.`:'<b>Your home is secure and everything checked out.</b>'}</p></div>
   <h2 class="sec">Arrival & departure</h2><div class="card"><div class="gal">${[...v.proof.arrival.slice(0,1),...v.proof.departure.slice(0,1)].map(img).join('')}</div></div>
@@ -724,7 +725,7 @@ async function buildPDF(v){
   y=152;
 
   /* --- details grid --- */
-  const det=[['Client',h.client],['Plan',PLANS[h.plan]||''],['Visit date',dfmt(v.date)],['Time on site',`${v.started} – ${v.finished}${duration(v)?'  ('+duration(v)+')':''}`],['Checked by',st.me||st.biz],['Next visit',nextVisit(v,h)||'As scheduled']];
+  const det=[['Client',h.client],['Plan',PLANS[h.plan]||''],['Visit date',dfmt(v.date)],['Time on site',`${v.started} – ${v.finished}${duration(v)?'  ('+duration(v)+')':''}`],['Checked by',v.by||st.me||st.biz],['Next visit',nextVisit(v,h)||'As scheduled']];
   fill('#FFFFFF');draw(C.line);doc.setLineWidth(.8);doc.roundedRect(M,y,CW,92,6,6,'FD');
   det.forEach(([k,val],i)=>{const cx=M+16+(i%3)*(CW/3),cy=y+24+Math.floor(i/3)*40;font(7.5,'bold');col(C.mut);T(k.toUpperCase(),cx,cy,{charSpace:.6});font(10.5,'bold');col(C.txt);T(wrap(val,CW/3-24)[0],cx,cy+15);});
   y+=110;
@@ -948,6 +949,124 @@ function profileView(h){
    ${inv.length?`<div class="gal" style="margin-top:10px">${inv.map(p=>`<div>${URLS[p.id]?`<img src="${URLS[p.id]}" alt="${esc(p.caption||'Baseline photo')}">`:''}<div class="cap">${esc(p.caption||'')}</div></div>`).join('')}</div>`:''}</details>`;
 }
 
+/* ================= CLOUD SYNC (Supabase) ================= */
+const SB_URL='https://hbgsyaofudiuajobwfaa.supabase.co', SB_KEY='sb_publishable_hcjxXEffzVMVgaGlfISj-g_ay_H1yFQ';
+let sb=null, USER=null, TEAM=[], ONTEAM=null, SYNCING=false, SYNC_ERR='', SY={lastPull:null,pushed:{},uploaded:{}};
+const LOCAL_ONLY=['pinHash','me'];
+function hsh(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))|0;return String(h>>>0)+':'+s.length;}
+async function loadSY(){const s=await dbGet('kv','sync');if(s)SY=Object.assign({lastPull:null,pushed:{},uploaded:{}},s);}
+async function saveSY(){await dbPut('kv','sync',SY);}
+const canSync=()=>sb&&USER&&ONTEAM&&navigator.onLine;
+function sharedSettings(){const s={...D.settings};LOCAL_ONLY.forEach(k=>delete s[k]);return s;}
+function allRecords(){const out=[];
+  D.homes.forEach(r=>out.push(['home',r]));D.visits.forEach(r=>out.push(['visit',r]));
+  (D.charges||[]).forEach(r=>out.push(['charge',r]));(D.statements||[]).forEach(r=>out.push(['statement',r]));
+  out.push(['settings',{id:'settings',...sharedSettings()}]);return out;}
+const LISTS={home:'homes',visit:'visits',charge:'charges',statement:'statements'};
+function photoIds(){const ids=new Set();D.visits.forEach(v=>{v.items.forEach(i=>i.photos.forEach(p=>ids.add(p.id)));['arrival','walk','departure'].forEach(k=>(v.proof[k]||[]).forEach(p=>ids.add(p.id)));});D.homes.forEach(h=>(h.inventory||[]).forEach(p=>ids.add(p.id)));return ids;}
+let pushTimer=null;
+function schedulePush(){if(!sb||!USER)return;clearTimeout(pushTimer);pushTimer=setTimeout(()=>syncNow(),1500);}
+async function pushNow(){
+  const rows=[],marks={},seen=new Set();
+  for(const [kind,r] of allRecords()){const id=r.id;seen.add(id);const h=hsh(JSON.stringify(r));if(!SY.pushed[id]||SY.pushed[id].h!==h){rows.push({id,kind,data:r,deleted:false});marks[id]={h,kind};}}
+  for(const [id,m] of Object.entries(SY.pushed)){if(!seen.has(id)&&!m.del){rows.push({id,kind:m.kind,data:null,deleted:true});marks[id]={h:'',kind:m.kind,del:true};}}
+  for(let i=0;i<rows.length;i+=200){const chunk=rows.slice(i,i+200);const {error}=await sb.from('records').upsert(chunk);if(error)throw error;chunk.forEach(r=>SY.pushed[r.id]=marks[r.id]);await saveSY();}
+}
+async function pullNow(){
+  let changed=false,from=0;
+  while(true){
+    let q=sb.from('records').select('*');if(SY.lastPull)q=q.gte('updated_at',SY.lastPull);
+    const {data,error}=await q.order('updated_at',{ascending:true}).range(from,from+499);if(error)throw error;
+    for(const row of data){
+      const local=SY.pushed[row.id];
+      if(row.deleted){ if(local&&local.del) continue; const L=LISTS[row.kind]; if(L&&D[L]){const n=D[L].length;D[L]=D[L].filter(x=>x.id!==row.id);if(D[L].length!==n)changed=true;} SY.pushed[row.id]={h:'',kind:row.kind,del:true}; }
+      else{ const h=hsh(JSON.stringify(row.data)); if(local&&local.h===h) continue;
+        if(row.kind==='settings'){const keep={};LOCAL_ONLY.forEach(k=>{if(D.settings[k]!==undefined)keep[k]=D.settings[k];});const s={...row.data};delete s.id;D.settings={...s,...keep};}
+        else{const L=LISTS[row.kind];if(!L)continue;D[L]=D[L]||[];const ix=D[L].findIndex(x=>x.id===row.id);if(ix>=0)D[L][ix]=row.data;else D[L].push(row.data);}
+        SY.pushed[row.id]={h,kind:row.kind};changed=true; }
+      if(!SY.lastPull||row.updated_at>SY.lastPull)SY.lastPull=row.updated_at;
+    }
+    if(data.length<500)break;from+=500;
+  }
+  if(changed){await dbPut('kv','data',D);}
+  await saveSY();return changed;
+}
+async function syncPhotos(){
+  const ids=photoIds(); let got=false;
+  for(const id of ids){
+    if(SY.uploaded[id])continue;
+    const r=await dbGet('photos',id);
+    if(r){const {error}=await sb.storage.from('photos').upload(id+'.jpg',r.blob,{upsert:true,contentType:'image/jpeg'});if(error&&!/exists|Duplicate/i.test(error.message||''))throw error;SY.uploaded[id]=1;await saveSY();}
+    else{const {data,error}=await sb.storage.from('photos').download(id+'.jpg');if(!error&&data){await dbPut('photos',id,{blob:data,time:'',label:''});URLS[id]=URL.createObjectURL(data);SY.uploaded[id]=1;await saveSY();got=true;}}
+  }
+  return got;
+}
+async function syncNow(manual){
+  if(!canSync()||SYNCING)return; SYNCING=true; SYNC_ERR='';
+  try{await pushNow();const ch=await pullNow();const ph=await syncPhotos();SY.lastSync=new Date().toISOString();await saveSY();
+    if((ch||ph)&&!isTyping())render(); if(manual)toast('Synced');}
+  catch(e){SYNC_ERR=(e&&e.message)||String(e);console.warn('sync',e);if(manual)toast('Sync problem: '+SYNC_ERR);}
+  finally{SYNCING=false;}
+}
+const isTyping=()=>{const a=document.activeElement;return a&&/INPUT|TEXTAREA|SELECT/.test(a.tagName);};
+async function loadTeam(){const {data,error}=await sb.from('team').select('*');if(error)throw error;TEAM=data||[];ONTEAM=TEAM.some(t=>t.email.toLowerCase()===(USER.email||'').toLowerCase());}
+const IS_OWNER=()=>TEAM.some(t=>t.email.toLowerCase()===(USER&&USER.email||'').toLowerCase()&&t.role==='owner');
+async function initCloud(){
+  if(!window.supabase){return;}
+  sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false}});
+  await loadSY();
+  const {data}=await sb.auth.getSession(); USER=data&&data.session?data.session.user:null;
+  if(USER){ if(navigator.onLine){try{await loadTeam();}catch(e){SYNC_ERR=e.message;ONTEAM=SY.onTeam||null;}} else ONTEAM=SY.onTeam||null; SY.onTeam=ONTEAM;await saveSY(); }
+  setInterval(()=>syncNow(),60000);
+  window.addEventListener('online',()=>syncNow());
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow();});
+  if(canSync()) syncNow();
+}
+const AUTH={mode:'in',msg:''};
+function vLogin(){
+  return `<div style="min-height:100vh;background:var(--dark);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:28px;gap:18px">
+  <div><p style="margin:0;color:#F0A374;font-weight:700;letter-spacing:1.5px;font-size:13px">${esc((D.settings.biz||'TwoHome Services').toUpperCase())}</p><h1 style="margin:8px 0 0;font-size:26px">${AUTH.mode==='in'?'Sign in':'Create your account'}</h1>
+  <p style="color:#C9D8DA;font-size:14px;line-height:1.5;margin:8px 0 0">${AUTH.mode==='in'?'Use the email and password for your team account.':'Use the email your team owner added. Choose a password of at least 8 characters.'}</p></div>
+  <div style="background:var(--card);color:var(--txt);border-radius:16px;padding:18px">
+   <label class="f" for="au-email" style="margin-top:0">Email</label><input id="au-email" type="email" autocomplete="email" value="${esc(AUTH.email||'')}">
+   <label class="f" for="au-pass">Password</label><input id="au-pass" type="password" autocomplete="${AUTH.mode==='in'?'current-password':'new-password'}">
+   ${AUTH.msg?`<p style="color:var(--red);font-size:14px;margin:10px 0 0">${esc(AUTH.msg)}</p>`:''}
+   <button class="btn btn-pri btn-block" style="margin-top:14px" data-act="auth">${AUTH.mode==='in'?'Sign in':'Create account'}</button>
+   <button class="btn btn-block" style="margin-top:6px;background:none;color:var(--teal)" data-act="authmode">${AUTH.mode==='in'?'New team member? Create an account':'Already have an account? Sign in'}</button></div>
+  ${!navigator.onLine?'<p style="color:#F0A374;font-size:14px">You are offline. Connect to the internet to sign in.</p>':''}</div>`;
+}
+function vNotTeam(){
+  return `<div style="min-height:100vh;background:var(--dark);color:#fff;display:flex;flex-direction:column;justify-content:center;padding:28px;gap:16px">
+  <h1 style="margin:0;font-size:24px">Almost there</h1><p style="color:#C9D8DA;line-height:1.55;margin:0">You're signed in as <b>${esc(USER.email)}</b>, but this email isn't on the team yet. Ask the owner to add it in <b>Settings › Team</b>, then tap "Check again."</p>
+  ${SYNC_ERR?`<p style="color:#F0A374;font-size:13px">Details: ${esc(SYNC_ERR)}</p>`:''}
+  <button class="btn btn-pri" data-act="recheck">Check again</button><button class="btn" style="background:none;color:#fff;border:2px solid #5E8790" data-act="signout">Sign out</button></div>`;
+}
+async function doAuth(){
+  const email=$('#au-email').value.trim(), pw=$('#au-pass').value; AUTH.email=email;
+  if(!email||pw.length<8){AUTH.msg='Enter your email and a password of at least 8 characters.';render();return;}
+  AUTH.msg='';
+  const res=AUTH.mode==='in'?await sb.auth.signInWithPassword({email,password:pw}):await sb.auth.signUp({email,password:pw});
+  if(res.error){AUTH.msg=res.error.message;render();return;}
+  if(!res.data.session){AUTH.msg='Check your email to confirm your account, then sign in.';AUTH.mode='in';render();return;}
+  USER=res.data.session.user;
+  try{await loadTeam();}catch(e){SYNC_ERR=e.message;ONTEAM=false;}
+  SY.onTeam=ONTEAM; if(SY.user!==USER.id){SY.user=USER.id;} await saveSY();
+  render(); if(ONTEAM){toast('Signed in. Syncing…');syncNow();}
+}
+function cloudSettings(){
+  if(!sb) return `<h2 class="sec">Cloud</h2><div class="card"><p class="note" style="margin:0">Cloud sync is unavailable right now (couldn't load). Your data is saved on this phone.</p></div>`;
+  const pend=[...photoIds()].filter(id=>!SY.uploaded[id]).length;
+  const owner=IS_OWNER();
+  return `<h2 class="sec">Account & sync</h2><div class="card">
+   <p style="margin:0 0 4px;font-size:14px">Signed in as <b>${esc(USER.email)}</b>${owner?' (owner)':''}</p>
+   <p class="note" style="margin:0 0 10px">${SY.lastSync?'Last synced '+new Date(SY.lastSync).toLocaleString([], {month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}):'Not synced yet'}${pend?` · ${pend} photo${pend>1?'s':''} waiting to upload`:''}${SYNC_ERR?`<br><span style="color:var(--red)">Problem: ${esc(SYNC_ERR)}</span>`:''}</p>
+   <div style="display:flex;gap:8px"><button class="btn btn-sm btn-dark" data-act="syncnow">Sync now</button><button class="btn btn-sm btn-out" data-act="signout">Sign out</button></div></div>
+  <h2 class="sec">Team</h2><div class="card">
+   <ul class="list">${TEAM.map(t=>`<li class="row"><span>${esc(t.name||'')}<br><span class="cap">${esc(t.email)}${t.role==='owner'?' · owner':''}</span></span>${owner&&t.role!=='owner'?`<button class="icon-btn" data-act="delteam" data-v="${esc(t.email)}" aria-label="Remove ${esc(t.email)}">✕</button>`:''}</li>`).join('')}</ul>
+   ${owner?`<label class="f" for="tm-name">Add a team member: name</label><input id="tm-name" type="text"><label class="f" for="tm-email">Their email</label><input id="tm-email" type="email"><button class="btn btn-sm btn-dark" style="margin-top:8px" data-act="addteam">Add to team</button>
+   <p class="note" style="margin:8px 0 0">After you add them, they open the app, tap "Create an account," and use that same email.</p>`:'<p class="note" style="margin:0">Only the owner can add or remove team members.</p>'}</div>`;
+}
+
 /* ================= HOMES ================= */
 function vHomes(){
   return topbar('Homes',`${D.homes.length} home${D.homes.length!==1?'s':''}`)+`<main>
@@ -984,7 +1103,7 @@ function vHome(){
 /* ================= SETTINGS ================= */
 function vSettings(){
   ensureBilling();const s=D.settings; const f=(k,l,t='text')=>`<label class="f" for="s-${k}">${l}</label><input id="s-${k}" type="${t}" data-s="${k}" value="${esc(s[k])}">`;
-  return topbar('Settings','Shown on every report')+`<main>
+  return topbar('Settings','Shown on every report')+`<main>${sb&&USER?cloudSettings():''}
   <div class="card">${f('biz','Business name')}${f('me','Your name (shown as "Checked by")')}${f('phone','Business phone','tel')}${f('email','Business email','email')}</div>
   <h2 class="sec">App lock</h2>
   <div class="card"><p class="note" style="margin:0 0 6px">${s.pinHash?'A PIN is set. The app asks for it when opened and after 5 minutes away.':'Protect lockbox and alarm codes with a 4–6 digit PIN.'} Write your PIN down somewhere safe.</p>
@@ -1015,6 +1134,8 @@ async function importAll(file){
 /* ================= Render + events ================= */
 function render(){
   if(LOCKED){$('#app').innerHTML=vLock();return;}
+  if(sb&&!USER){$('#app').innerHTML=vLogin();return;}
+  if(sb&&USER&&ONTEAM===false){$('#app').innerHTML=vNotTeam();return;}
   let h;
   if(S.view==='visit') h=vVisit(); else if(S.view==='report') h=vReport(); else if(S.view==='home') h=vHome();
   else h=S.tab==='visits'?vVisits():S.tab==='homes'?vHomes():S.tab==='billing'?vBilling():vSettings();
@@ -1068,6 +1189,14 @@ document.addEventListener('click',async e=>{
     case 'setpin': await setPin();break;
     case 'clearpin': if(confirmDel('Turn off the PIN lock?')){delete D.settings.pinHash;await save();}break;
     case 'delinv': DRAFT.inventory.splice(+v,1);break;
+    case 'auth': await doAuth();return;
+    case 'authmode': AUTH.mode=AUTH.mode==='in'?'up':'in';AUTH.msg='';break;
+    case 'recheck': try{await loadTeam();SY.onTeam=ONTEAM;await saveSY();if(ONTEAM)syncNow();else toast('Not on the team yet');}catch(e){SYNC_ERR=e.message;toast('Could not check: '+e.message);}break;
+    case 'signout': if(confirmDel('Sign out? Your data stays saved on this phone and in the cloud.')){await sb.auth.signOut();USER=null;ONTEAM=null;TEAM=[];}break;
+    case 'syncnow': await syncNow(true);break;
+    case 'addteam':{const n=$('#tm-name').value.trim(),em=$('#tm-email').value.trim().toLowerCase();if(!em.includes('@')){toast('Enter a valid email');return;}
+      const {error}=await sb.from('team').insert({email:em,name:n,role:'member'});if(error){toast('Could not add: '+error.message);return;}await loadTeam();toast('Added. Ask them to create an account with that email.');break;}
+    case 'delteam': if(confirmDel('Remove '+v+' from the team? They will lose access.')){const {error}=await sb.from('team').delete().eq('email',v);if(error){toast(error.message);return;}await loadTeam();}break;
     case 'export': await exportAll();toast('Backup downloaded');return;
   }
   render();
@@ -1103,6 +1232,7 @@ document.addEventListener('change',async e=>{
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
   }catch(e){ document.body.insertAdjacentHTML('afterbegin','<p style="background:#FDECEA;padding:12px;margin:0">This browser can\'t save data here. Open the app from its web address (not as a file) in Safari or Chrome.</p>'); DB=null; }
   if(D.settings.pinHash) LOCKED=true;
+  try{await initCloud();}catch(e){console.warn('cloud init',e);}
   if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
   render();
 })();
