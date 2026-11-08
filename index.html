@@ -1018,6 +1018,8 @@ function vLogin(){
   <div style="background:var(--card);color:var(--txt);border-radius:16px;padding:18px">
    <label class="f" for="au-email" style="margin-top:0">Email</label><input id="au-email" type="email" autocomplete="email" value="${esc(AUTH.email||'')}">
    <label class="f" for="au-pass">Password</label><input id="au-pass" type="password" autocomplete="${AUTH.mode==='in'?'current-password':'new-password'}">
+   ${AUTH.mode==='up'?`<label class="f" for="au-pass2">Confirm password</label><input id="au-pass2" type="password" autocomplete="new-password">`:''}
+   <button type="button" data-act="showpw" style="background:none;border:none;color:var(--teal);font-weight:600;padding:8px 0;min-height:40px;cursor:pointer">Show password</button>
    ${AUTH.msg?`<p style="color:var(--red);font-size:14px;margin:10px 0 0">${esc(AUTH.msg)}</p>`:''}
    <button class="btn btn-pri btn-block" style="margin-top:14px" data-act="auth">${AUTH.mode==='in'?'Sign in':'Create account'}</button>
    <button class="btn btn-block" style="margin-top:6px;background:none;color:var(--teal)" data-act="authmode">${AUTH.mode==='in'?'New team member? Create an account':'Already have an account? Sign in'}</button></div>
@@ -1033,6 +1035,7 @@ function vNotTeam(){
 async function doAuth(){
   const email=$('#au-email').value.trim(), pw=$('#au-pass').value; AUTH.email=email;
   if(!email||pw.length<8){AUTH.msg='Enter your email and a password of at least 8 characters.';render();return;}
+  if(AUTH.mode==='up'&&pw!==$('#au-pass2').value){AUTH.msg='The two passwords don\'t match. Please type them again.';render();return;}
   AUTH.msg='';
   const res=AUTH.mode==='in'?await sb.auth.signInWithPassword({email,password:pw}):await sb.auth.signUp({email,password:pw});
   if(res.error){AUTH.msg=res.error.message;render();return;}
@@ -1352,6 +1355,7 @@ document.addEventListener('click',async e=>{
     case 'clearpin': if(confirmDel('Turn off the PIN lock?')){delete D.settings.pinHash;await save();}break;
     case 'delinv': DRAFT.inventory.splice(+v,1);break;
     case 'auth': await doAuth();return;
+    case 'showpw':{const show=$('#au-pass').type==='password';document.querySelectorAll('#au-pass,#au-pass2').forEach(i=>i.type=show?'text':'password');b.textContent=show?'Hide password':'Show password';return;}
     case 'authmode': AUTH.mode=AUTH.mode==='in'?'up':'in';AUTH.msg='';break;
     case 'recheck': try{await loadTeam();SY.onTeam=ONTEAM;await saveSY();if(ONTEAM)syncNow();else toast('Not on the team yet');}catch(e){SYNC_ERR=e.message;toast('Could not check: '+e.message);}break;
     case 'signout': if(confirmDel('Sign out? Your data stays saved on this phone and in the cloud.')){await sb.auth.signOut();USER=null;ONTEAM=null;TEAM=[];}break;

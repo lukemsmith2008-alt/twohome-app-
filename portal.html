@@ -69,6 +69,8 @@ const addrOf=hid=>{const d=P.docs.find(x=>x.home_id===hid&&x.data.address);retur
 function vLogin(){
   return `<header><p class="k">HOME WATCH PORTAL</p><h1>${P.mode==='in'?'Sign in to see your home':'Create your account'}</h1><p>${P.mode==='in'?'Use the email and password you set up.':'Use the email address your home watch team has on file, and choose a password (at least 8 characters).'}</p></header>
   <main><div class="card"><label for="em">Email</label><input id="em" type="email" autocomplete="email" value="${esc(P.email)}"><label for="pw">Password</label><input id="pw" type="password" autocomplete="${P.mode==='in'?'current-password':'new-password'}">
+  ${P.mode==='up'?`<label for="pw2">Confirm password</label><input id="pw2" type="password" autocomplete="new-password">`:''}
+  <button type="button" data-act="showpw" style="background:none;border:none;color:var(--teal);font-weight:600;padding:8px 0;min-height:44px;cursor:pointer;font-size:16px">Show password</button>
   ${P.msg?`<p style="color:var(--red);margin:12px 0 0">${esc(P.msg)}</p>`:''}
   <button class="btn pri block" style="margin-top:16px" data-act="auth">${P.mode==='in'?'Sign in':'Create account'}</button>
   <button class="btn block" style="background:none;color:var(--teal);margin-top:6px" data-act="mode">${P.mode==='in'?'First time here? Create your account':'Already have an account? Sign in'}</button></div></main>`;
@@ -142,7 +144,9 @@ async function load(){
 }
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act, v=b.dataset.v;
+  if(a==='showpw'){const show=$('#pw').type==='password';document.querySelectorAll('#pw,#pw2').forEach(i=>i.type=show?'text':'password');b.textContent=show?'Hide password':'Show password';return;}
   if(a==='auth'){const em=$('#em').value.trim(),pw=$('#pw').value;P.email=em;if(!em||pw.length<8){P.msg='Enter your email and a password of at least 8 characters.';return render();}
+    if(P.mode==='up'&&pw!==$('#pw2').value){P.msg='The two passwords don\'t match. Please type them again.';return render();}
     const res=P.mode==='in'?await sb.auth.signInWithPassword({email:em,password:pw}):await sb.auth.signUp({email:em,password:pw});
     if(res.error){P.msg=res.error.message==='Invalid login credentials'?'That email and password don\'t match. First time here? Tap "Create your account."':res.error.message;return render();}
     if(!res.data.session){P.msg='Check your email to confirm your account, then sign in.';P.mode='in';return render();}
