@@ -127,7 +127,7 @@ function render(){
   if(!sb) h=`<main><div class="card">The portal can't load right now. Please check your internet connection and refresh.</div></main>`;
   else if(P.loading) h=`<main><p class="note">Loading…</p></main>`;
   else if(!P.user) h=vLogin();
-  else if(!P.homeIds.length) h=`<header><p class="k">HOME WATCH PORTAL</p><h1>Almost there</h1><p>${esc(P.user.email)}</p></header><main><div class="card"><p style="margin:0;line-height:1.55">We couldn't find a home linked to this email yet. Please contact your home watch team and make sure they have this exact email address on file.</p><button class="btn dark" style="margin-top:14px" data-act="reload">Check again</button></div><button class="btn out block" data-act="signout">Sign out</button></main>`;
+  else if(!P.homeIds.length) h=`<header><p class="k">HOME WATCH PORTAL</p><h1>Almost there</h1><p>${esc(P.user.email)}</p></header><main><div class="card"><p style="margin:0;line-height:1.55">We couldn't find a home linked to this email yet. Please contact your home watch team and make sure they have this exact email address on file.</p>${P.err?`<p class="note" style="margin:10px 0 0">Technical detail for your team: ${esc(P.err)}</p>`:''}<button class="btn dark" style="margin-top:14px" data-act="reload">Check again</button></div><button class="btn out block" data-act="signout">Sign out</button></main>`;
   else if(P.view==='report') h=vReport(); else if(P.view==='stmt') h=vStmt();
   else if(P.view==='home'&&P.homeId) h=vHome(); else h=vHomeList();
   $('#app').innerHTML=h;
@@ -135,6 +135,7 @@ function render(){
 }
 async function load(){
   const a=await sb.from('client_access').select('*'); const d=await sb.from('client_docs').select('*'); const r=await sb.from('client_responses').select('*');
+  P.err=(a.error&&a.error.message)||(d.error&&d.error.message)||'';
   P.homeIds=[...new Set((a.data||[]).map(x=>x.home_id))]; P.docs=d.data||[]; P.answers={};
   (r.data||[]).forEach(x=>P.answers[x.visit_id+'|'+x.item_id]=x.answer);
   if(P.homeIds.length===1){P.homeId=P.homeIds[0];P.view='home';}
