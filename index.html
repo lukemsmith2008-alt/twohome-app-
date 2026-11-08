@@ -567,24 +567,12 @@ function thumb(p,del){const u=URLS[p.id];return `<button class="thumb" data-act=
 const addBtn=(attr,l)=>`<label class="addph">${l}<input type="file" accept="image/*" capture="environment" ${attr}></label>`;
 
 /* ================= VISITS ================= */
-function vVisits(){
-  const open=D.visits.filter(v=>v.status!=='sent').sort((a,b)=>b.date.localeCompare(a.date));
-  const sent=D.visits.filter(v=>v.status==='sent').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,30);
-  const card=v=>{const h=home(v.homeId)||{client:'(deleted home)',address:''};const fl=flagged(v).length;
-    return `<button class="listbtn" data-act="openvisit" data-v="${v.id}"><div class="row"><h3>${esc(h.client)}</h3>${v.status==='sent'?'<span class="badge b-done">SENT</span>':'<span class="badge b-prog">IN PROGRESS</span>'}</div><p>${esc(h.address)}</p><p>${dfmt(v.date)} · ${v.started}${v.finished?'–'+v.finished:''}${fl?` · <b style="color:var(--org)">${fl} flagged</b>`:''}</p></button>`;};
-  return topbar('Visits',new Date().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'}))+`<main>
-  ${D.homes.length?`<h2 class="sec">Start a visit</h2>${D.homes.map(h=>`<button class="listbtn" data-act="startvisit" data-v="${h.id}"><div class="row"><h3>${esc(h.client)}</h3><span class="badge b-todo">START</span></div><p>${esc(h.address)} · ${PLANS[h.plan]||''}</p></button>`).join('')}`:
-  `<div class="card"><b>Welcome!</b><p class="note" style="margin:6px 0 10px">Add your first home (your grandparents' house is perfect), customize its checklist, then start a visit.</p><button class="btn btn-pri btn-block" data-act="newhome">Add a home</button></div>`}
-  ${open.length?`<h2 class="sec">In progress</h2>${open.map(card).join('')}`:''}
-  ${sent.length?`<h2 class="sec">Sent reports</h2>${sent.map(card).join('')}`:''}
-  </main>`+nav();
-}
-async function startVisit(hid){
+async function startVisit(hid,apptId){
   const h=home(hid);
   const items=h.checklist.map(c=>({id:uid(),area:c.area,label:c.label,status:null,note:'',photos:[]}))
     .concat(h.upkeep.filter(u=>u.trim()).map(u=>({id:uid(),area:'Upkeep tasks',label:u,status:null,note:'',photos:[]})));
   const v={id:uid(),homeId:hid,by:D.settings.me||(USER&&USER.email)||'',date:new Date().toISOString(),startISO:new Date().toISOString(),started:tnow(),finished:null,status:'progress',items,proof:{arrival:[],walk:[],departure:[]},responses:{}};
-  D.visits.push(v); await save(); S.visitId=v.id; S.view='visit'; S.reveal=false; toast('Visit started: arrival time saved');
+  D.visits.push(v); if(apptId){const a=D.appts.find(x=>x.id===apptId);if(a){a.visitId=v.id;}} await save(); S.visitId=v.id; S.view='visit'; S.reveal=false; toast('Visit started: arrival time saved');
 }
 function missing(v){
   const m=[];
@@ -809,7 +797,7 @@ async function sendPDF(){
   const file=new File([blob],pdfName(v),{type:'application/pdf'});
   try{
     if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text:shareMessage(v),title:'Home watch visit report'});
-      if(v.status!=='sent'){v.status='sent';await save();render();toast('Report sent');}}
+      if(v.status!=='sent'){v.status='sent';completeApptFor(v);await save();render();toast('Report sent');}}
     else{downloadBlob(blob,file.name);toast('PDF downloaded: attach it to an email or text');}
   }catch(e){if(e.name!=='AbortError')toast('Sharing failed. Try "Preview PDF" and share from there.');}
 }
@@ -960,9 +948,9 @@ const canSync=()=>sb&&USER&&ONTEAM&&navigator.onLine;
 function sharedSettings(){const s={...D.settings};LOCAL_ONLY.forEach(k=>delete s[k]);return s;}
 function allRecords(){const out=[];
   D.homes.forEach(r=>out.push(['home',r]));D.visits.forEach(r=>out.push(['visit',r]));
-  (D.charges||[]).forEach(r=>out.push(['charge',r]));(D.statements||[]).forEach(r=>out.push(['statement',r]));
+  (D.charges||[]).forEach(r=>out.push(['charge',r]));(D.appts||[]).forEach(r=>out.push(['appt',r]));(D.statements||[]).forEach(r=>out.push(['statement',r]));
   out.push(['settings',{id:'settings',...sharedSettings()}]);return out;}
-const LISTS={home:'homes',visit:'visits',charge:'charges',statement:'statements'};
+const LISTS={home:'homes',visit:'visits',charge:'charges',statement:'statements',appt:'appts'};
 function photoIds(){const ids=new Set();D.visits.forEach(v=>{v.items.forEach(i=>i.photos.forEach(p=>ids.add(p.id)));['arrival','walk','departure'].forEach(k=>(v.proof[k]||[]).forEach(p=>ids.add(p.id)));});D.homes.forEach(h=>(h.inventory||[]).forEach(p=>ids.add(p.id)));return ids;}
 let pushTimer=null;
 function schedulePush(){if(!sb||!USER)return;clearTimeout(pushTimer);pushTimer=setTimeout(()=>syncNow(),1500);}
@@ -1068,6 +1056,109 @@ function cloudSettings(){
    <p class="note" style="margin:8px 0 0">After you add them, they open the app, tap "Create an account," and use that same email.</p>`:'<p class="note" style="margin:0">Only the owner can add or remove team members.</p>'}</div>`;
 }
 
+/* ================= SCHEDULING (Phase 2) ================= */
+const FREQ={weekly:['Weekly',7],biweekly:['Every 2 weeks',14],monthly:['Monthly (every 4 weeks)',28],none:['Not scheduled',0]};
+const DAYS=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const PLAN_FREQ={weekly:'weekly',concierge:'weekly',twohome:'weekly',biweekly:'biweekly',monthly:'monthly',other:'none'};
+function ensureSched(){D.appts=D.appts||[];}
+const ymd=d=>{const x=new Date(d);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
+const parseYmd=s=>{const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d);};
+const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
+const todayYmd=()=>ymd(new Date());
+const homeFreq=h=>h.freq||PLAN_FREQ[h.plan]||'weekly';
+function inSeason(h,date){
+  if(!h.seasonFrom||!h.seasonTo) return true;
+  const md=String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0');
+  const a=h.seasonFrom.slice(5)||h.seasonFrom, b=h.seasonTo.slice(5)||h.seasonTo;
+  return a<=b ? (md>=a&&md<=b) : (md>=a||md<=b);
+}
+function nextOnDay(from,dow){const d=new Date(from);d.setHours(0,0,0,0);while(d.getDay()!==dow)d.setDate(d.getDate()+1);return d;}
+function plannedDates(h){
+  const f=FREQ[homeFreq(h)]||FREQ.weekly; if(!f[1]||h.paused) return [];
+  const dow=h.day!==undefined&&h.day!==''?+h.day:1;
+  let d=h.schedStart?parseYmd(h.schedStart):nextOnDay(new Date(),dow);
+  if(h.schedStart) d=nextOnDay(d,dow);
+  const start=addDays(new Date(),-14), end=addDays(new Date(),42), out=[];
+  while(d<start) d=addDays(d,f[1]);
+  for(;d<=end;d=addDays(d,f[1])) if(inSeason(h,d)) out.push(ymd(d));
+  return out;
+}
+function genAppts(){
+  ensureSched(); let changed=false; const today=todayYmd();
+  for(const h of D.homes){
+    const want=new Set(plannedDates(h));
+    for(const ds of want){const id=`ap-${h.id}-${ds}`; if(!D.appts.some(a=>a.id===id)&&ds>=addYmd(today,-7)){D.appts.push({id,homeId:h.id,date:ds,origDate:ds,assignee:h.assignee||'',status:'planned'});changed=true;}}
+    const n=D.appts.length;
+    D.appts=D.appts.filter(a=>!(a.homeId===h.id&&a.status==='planned'&&!a.moved&&a.date>=today&&!want.has(a.origDate)));
+    if(D.appts.length!==n) changed=true;
+  }
+  const n=D.appts.length; D.appts=D.appts.filter(a=>home(a.homeId)||a.status==='done'); if(D.appts.length!==n)changed=true;
+  // keep the list small: drop finished/skipped appointments older than 60 days
+  const old=addYmd(today,-60); const m=D.appts.length; D.appts=D.appts.filter(a=>a.date>=old||a.status==='planned'); if(D.appts.length!==m)changed=true;
+  return changed;
+}
+const addYmd=(s,n)=>ymd(addDays(parseYmd(s),n));
+const teamName=e=>{if(!e)return 'Unassigned';const t=(typeof TEAM!=='undefined'?TEAM:[]).find(x=>x.email.toLowerCase()===e.toLowerCase());return t?(t.name||t.email):e;};
+const myEmail=()=>(typeof USER!=='undefined'&&USER&&USER.email)?USER.email.toLowerCase():'';
+function dayLabel(ds){const t=todayYmd();if(ds===t)return 'Today';if(ds===addYmd(t,1))return 'Tomorrow';return parseYmd(ds).toLocaleDateString([], {weekday:'long',month:'short',day:'numeric'});}
+function apptCard(a){const h=home(a.homeId);if(!h)return '';const v=a.visitId&&D.visits.find(x=>x.id===a.visitId);
+  const badge=a.status==='done'?'<span class="badge b-done">DONE</span>':a.status==='skipped'?'<span class="badge b-todo">SKIPPED</span>':v?'<span class="badge b-prog">IN PROGRESS</span>':a.date<todayYmd()?'<span class="badge b-urgent">OVERDUE</span>':'';
+  return `<button class="listbtn" data-act="openappt" data-v="${a.id}"><div class="row"><h3>${esc(h.client)}</h3>${badge}</div><p>${esc(h.address)}</p><p>${PLANS[h.plan]||''} · <b>${esc(teamName(a.assignee))}</b>${a.moved?' · rescheduled':''}</p></button>`;}
+function vVisits(){
+  ensureSched(); if(genAppts()) save();
+  const t=todayYmd(), me=myEmail(), mine=S.scope!=='all'&&me;
+  const show=a=>!mine||!a.assignee||a.assignee.toLowerCase()===me;
+  const ap=D.appts.filter(show).sort((a,b)=>a.date.localeCompare(b.date));
+  const overdue=ap.filter(a=>a.status==='planned'&&!a.visitId&&a.date<t);
+  const today=ap.filter(a=>a.date===t&&a.status!=='skipped');
+  const week=ap.filter(a=>a.date>t&&a.date<=addYmd(t,7)&&a.status!=='skipped');
+  const linked=new Set(D.appts.map(a=>a.visitId).filter(Boolean));
+  const open=D.visits.filter(v=>v.status!=='sent'&&!linked.has(v.id)).sort((a,b)=>b.date.localeCompare(a.date));
+  const sent=D.visits.filter(v=>v.status==='sent').sort((a,b)=>b.date.localeCompare(a.date)).slice(0,15);
+  const vcard=v=>{const h=home(v.homeId)||{client:'(deleted home)',address:''};const fl=flagged(v).length;
+    return `<button class="listbtn" data-act="openvisit" data-v="${v.id}"><div class="row"><h3>${esc(h.client)}</h3>${v.status==='sent'?'<span class="badge b-done">SENT</span>':'<span class="badge b-prog">IN PROGRESS</span>'}</div><p>${esc(h.address)}</p><p>${dfmt(v.date)} · ${v.started}${v.finished?'–'+v.finished:''}${v.by?' · '+esc(v.by):''}${fl?` · <b style="color:var(--org)">${fl} flagged</b>`:''}</p></button>`;};
+  const days=[...new Set(week.map(a=>a.date))];
+  if(!D.homes.length) return topbar('Visits',dayLabel(t))+`<main><div class="card"><b>Welcome!</b><p class="note" style="margin:6px 0 10px">Add your first home and its visit schedule. Visits then show up here automatically.</p><button class="btn btn-pri btn-block" data-act="newhome">Add a home</button></div></main>`+nav();
+  return topbar('Visits',new Date().toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'}))+`<main>
+  ${me?`<div class="toggle" role="group" aria-label="Whose visits" style="display:flex;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:4px;margin-bottom:12px">${[['mine','My visits'],['all','Everyone']].map(([k,l])=>`<button data-act="scope" data-v="${k}" style="flex:1;border:none;border-radius:999px;padding:9px;font-weight:600;cursor:pointer;min-height:40px;${(S.scope||'mine')===k?'background:var(--dark);color:#fff':'background:none;color:var(--mut)'}">${l}</button>`).join('')}</div>`:''}
+  ${overdue.length?`<h2 class="sec" style="color:var(--red)">Overdue (${overdue.length})</h2>${overdue.map(apptCard).join('')}`:''}
+  <h2 class="sec">Today</h2>${today.length?today.map(apptCard).join(''):'<p class="note" style="margin:0 2px 8px">No visits scheduled today.</p>'}
+  ${open.length?`<h2 class="sec">Other visits in progress</h2>${open.map(vcard).join('')}`:''}
+  <h2 class="sec">Next 7 days</h2>${days.length?days.map(d=>`<p class="cap" style="margin:10px 2px 6px;font-weight:700">${dayLabel(d)}</p>${week.filter(a=>a.date===d).map(apptCard).join('')}`).join(''):'<p class="note" style="margin:0 2px 8px">Nothing scheduled this week.</p>'}
+  <details class="card" style="margin-top:14px"><summary style="cursor:pointer;font-weight:700;min-height:32px">Start an unscheduled visit</summary><div style="margin-top:8px">${D.homes.map(h=>`<button class="listbtn" data-act="startvisit" data-v="${h.id}"><div class="row"><h3>${esc(h.client)}</h3><span class="badge b-todo">START</span></div><p>${esc(h.address)}</p></button>`).join('')}</div></details>
+  ${sent.length?`<details class="card"><summary style="cursor:pointer;font-weight:700;min-height:32px">Sent reports (${sent.length})</summary><div style="margin-top:8px">${sent.map(vcard).join('')}</div></details>`:''}
+  </main>`+nav();
+}
+function vAppt(){
+  const a=D.appts.find(x=>x.id===S.apptId); if(!a){S.view='list';return vVisits();}
+  const h=home(a.homeId); const v=a.visitId&&D.visits.find(x=>x.id===a.visitId);
+  const team=(typeof TEAM!=='undefined'&&TEAM.length)?TEAM:[];
+  return topbar(h.client,`${dayLabel(a.date)} · ${PLANS[h.plan]||''}`,'back')+`<main>
+  <div class="card"><dl class="kv"><dt>Address</dt><dd><a href="https://maps.google.com/?q=${encodeURIComponent(h.address)}">${esc(h.address)}</a></dd><dt>Scheduled</dt><dd>${parseYmd(a.date).toLocaleDateString([], {weekday:'long',month:'long',day:'numeric'})}${a.moved?` <span class="cap">(was ${parseYmd(a.origDate).toLocaleDateString([], {month:'short',day:'numeric'})})</span>`:''}</dd><dt>Assigned to</dt><dd>${esc(teamName(a.assignee))}</dd><dt>Status</dt><dd>${a.status==='done'?'Done, report sent':a.status==='skipped'?'Skipped':v?'In progress':'Planned'}</dd></dl></div>
+  ${a.status==='done'&&v?`<button class="btn btn-dark btn-block" data-act="openvisit" data-v="${v.id}">View report</button>`:a.status==='skipped'?`<button class="btn btn-out btn-block" data-act="unskip">Put back on the schedule</button>`:
+   `<button class="btn btn-pri btn-block" data-act="${v?'openvisit':'apptstart'}" data-v="${v?v.id:a.id}">${v?'Continue visit':'Start visit'}</button>`}
+  ${a.status==='planned'?`<h2 class="sec">Change</h2><div class="card">
+   <label class="f" for="ap-date" style="margin-top:0">Move to date</label><input id="ap-date" type="date" value="${a.date}">
+   <label class="f" for="ap-who">Assign to</label><select id="ap-who"><option value="">Unassigned</option>${team.map(t=>`<option value="${esc(t.email)}" ${a.assignee&&a.assignee.toLowerCase()===t.email.toLowerCase()?'selected':''}>${esc(t.name||t.email)}</option>`).join('')}</select>
+   <button class="btn btn-sm btn-dark" style="margin-top:10px" data-act="apptsave">Save changes</button></div>
+   <button class="btn btn-danger btn-block" data-act="skip">Skip this visit</button>`:''}
+  </main>`+nav();
+}
+function scheduleEditor(h){
+  const team=(typeof TEAM!=='undefined'&&TEAM.length)?TEAM:[];
+  const fq=homeFreq(h);
+  return `<h2 class="sec">Visit schedule</h2><div class="card">
+   <label class="f" for="f-freq" style="margin-top:0">How often</label><select id="f-freq" data-f="freq">${Object.entries(FREQ).map(([k,[l]])=>`<option value="${k}" ${fq===k?'selected':''}>${l}</option>`).join('')}</select>
+   <label class="f" for="f-day">Visit day</label><select id="f-day" data-f="day">${DAYS.map((d,i)=>`<option value="${i}" ${String(h.day??1)===String(i)?'selected':''}>${d}</option>`).join('')}</select>
+   <label class="f" for="f-schedStart">First visit on or after</label><input id="f-schedStart" type="date" data-f="schedStart" value="${esc(h.schedStart||'')}">
+   <label class="f" for="f-assignee">Usually assigned to</label>${team.length?`<select id="f-assignee" data-f="assignee"><option value="">Unassigned</option>${team.map(t=>`<option value="${esc(t.email)}" ${h.assignee&&h.assignee.toLowerCase()===t.email.toLowerCase()?'selected':''}>${esc(t.name||t.email)}</option>`).join('')}</select>`:'<p class="note" style="margin:0">Sign in to assign team members.</p>'}
+   <label class="f">Watch season (when the owners are away)</label>
+   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><div><span class="cap">From</span><input type="date" aria-label="Season starts" data-f="seasonFrom" value="${esc(h.seasonFrom||'')}"></div><div><span class="cap">Until</span><input type="date" aria-label="Season ends" data-f="seasonTo" value="${esc(h.seasonTo||'')}"></div></div>
+   <p class="note" style="margin:6px 0 0">Repeats every year (only month and day count). Example: Nov 1 – Apr 30 for an Indianapolis home of Florida snowbirds. Leave blank to visit year-round.</p>
+   <label style="display:flex;gap:10px;align-items:center;margin-top:12px;font-size:15px;min-height:44px"><input type="checkbox" data-fc="paused" ${h.paused?'checked':''} style="width:22px;height:22px"> Pause visits for this home</label></div>`;
+}
+function completeApptFor(v){ensureSched();const a=D.appts.find(x=>x.visitId===v.id);if(a&&a.status!=='done'){a.status='done';}}
+
 /* ================= HOMES ================= */
 function vHomes(){
   return topbar('Homes',`${D.homes.length} home${D.homes.length!==1?'s':''}`)+`<main>
@@ -1087,6 +1178,7 @@ function vHome(){
    <label class="f" for="f-autopay">Autopay</label><select id="f-autopay" data-f="autopay"><option value="none" ${h.autopay!=='active'?'selected':''}>Not set up</option><option value="active" ${h.autopay==='active'?'selected':''}>Active (plan is paid automatically)</option></select>
    ${f('emergency','Emergency spending OK up to ($)','number')}
    <label class="f" for="f-notes">Notes for the visit</label><textarea id="f-notes" rows="3" data-f="notes" placeholder="Shutoff locations, thermostat setting, quirks of this house">${esc(h.notes)}</textarea></div>
+  ${scheduleEditor(h)}
   ${profileEditor(h)}
   <h2 class="sec">Checklist for this home</h2>
   <div class="card"><p class="note" style="margin:0 0 8px">Start from a template, then rename, remove or add items to fit this house.</p>
@@ -1138,7 +1230,7 @@ function render(){
   if(sb&&!USER){$('#app').innerHTML=vLogin();return;}
   if(sb&&USER&&ONTEAM===false){$('#app').innerHTML=vNotTeam();return;}
   let h;
-  if(S.view==='visit') h=vVisit(); else if(S.view==='report') h=vReport(); else if(S.view==='home') h=vHome();
+  if(S.view==='appt') h=vAppt(); else if(S.view==='visit') h=vVisit(); else if(S.view==='report') h=vReport(); else if(S.view==='home') h=vHome();
   else h=S.tab==='visits'?vVisits():S.tab==='homes'?vHomes():S.tab==='billing'?vBilling():vSettings();
   if(!navigator.onLine) h=h.replace('<main>','<main><div class="card" style="background:var(--mist);padding:10px 14px;font-size:13.5px"><b>Offline.</b> Everything still saves. Send reports once you have signal.</div>');
   $('#app').innerHTML=h;
@@ -1163,7 +1255,7 @@ document.addEventListener('click',async e=>{
     case 'resp': vis.responses[b.dataset.id]=vis.responses[b.dataset.id]===v?undefined:v;await save();break;
     case 'sendpdf': await sendPDF();return;
     case 'previewpdf': await previewPDF();return;
-    case 'marksent': vis.status='sent';await save();toast('Marked as sent');break;
+    case 'marksent': vis.status='sent';completeApptFor(vis);await save();toast('Marked as sent');break;
     case 'newhome': newHome();break;
     case 'edithome': DRAFT=JSON.parse(JSON.stringify(home(v)));S.view='home';break;
     case 'cancelhome': S.view='list';S.tab='homes';break;
@@ -1174,7 +1266,7 @@ document.addEventListener('click',async e=>{
     case 'delup': DRAFT.upkeep.splice(+v,1);break;
     case 'addup': DRAFT.upkeep.push('');break;
     case 'savehome':{const h=DRAFT;if(!h.client.trim()||!h.address.trim()){toast('Add a client name and address');return;}
-      h.checklist=h.checklist.filter(c=>c.label.trim());delete h.isNew;const ix=D.homes.findIndex(x=>x.id===h.id);if(ix>=0)D.homes[ix]=h;else D.homes.push(h);await save();toast('Home saved');S.view='list';S.tab='homes';break;}
+      h.checklist=h.checklist.filter(c=>c.label.trim());delete h.isNew;const ix=D.homes.findIndex(x=>x.id===h.id);if(ix>=0)D.homes[ix]=h;else D.homes.push(h);genAppts();await save();toast('Home saved');S.view='list';S.tab='homes';break;}
     case 'delhome': if(confirmDel('Delete this home? Past visit reports are kept.')){D.homes=D.homes.filter(x=>x.id!==DRAFT.id);await save();S.view='list';S.tab='homes';}break;
     case 'addcharge':{ensureBilling();const d=$('#cd-'+v).value.trim(),amt=parseFloat($('#ca-'+v).value);if(!d||!(amt>0)){toast('Add a description and amount');return;}
       D.charges.push({id:uid(),homeId:v,date:new Date().toISOString(),desc:d,amount:amt,status:'unbilled'});await save();toast('Charge added');break;}
@@ -1198,6 +1290,12 @@ document.addEventListener('click',async e=>{
     case 'addteam':{const n=$('#tm-name').value.trim(),em=$('#tm-email').value.trim().toLowerCase();if(!em.includes('@')){toast('Enter a valid email');return;}
       const {error}=await sb.from('team').insert({email:em,name:n,role:'member'});if(error){toast('Could not add: '+error.message);return;}await loadTeam();toast('Added. Ask them to create an account with that email.');break;}
     case 'delteam': if(confirmDel('Remove '+v+' from the team? They will lose access.')){const {error}=await sb.from('team').delete().eq('email',v);if(error){toast(error.message);return;}await loadTeam();}break;
+    case 'scope': S.scope=v;break;
+    case 'openappt': S.apptId=v;S.view='appt';break;
+    case 'apptstart':{const a=D.appts.find(x=>x.id===v);await startVisit(a.homeId,a.id);break;}
+    case 'apptsave':{const a=D.appts.find(x=>x.id===S.apptId);const nd=$('#ap-date').value;if(nd&&nd!==a.date){a.date=nd;a.moved=true;}a.assignee=$('#ap-who').value;await save();toast('Saved');break;}
+    case 'skip': if(confirmDel('Skip this visit? It will be marked as skipped.')){const a=D.appts.find(x=>x.id===S.apptId);a.status='skipped';await save();S.view='list';}break;
+    case 'unskip':{const a=D.appts.find(x=>x.id===S.apptId);a.status='planned';await save();break;}
     case 'export': await exportAll();toast('Backup downloaded');return;
   }
   render();
@@ -1216,7 +1314,9 @@ document.addEventListener('input',async e=>{
 document.addEventListener('change',async e=>{
   const t=e.target;
   if(t.dataset.import&&t.files[0]){try{await importAll(t.files[0]);toast('Backup restored');render();}catch(_){toast('That file is not a valid backup');}return;}
-  if((t.dataset.f==='plan'||t.dataset.f==='autopay')&&DRAFT){DRAFT[t.dataset.f]=t.value;return;}
+  if(t.dataset.f&&DRAFT&&t.tagName==='SELECT'){DRAFT[t.dataset.f]=t.value;return;}
+  if(t.dataset.f&&DRAFT&&t.type==='date'){DRAFT[t.dataset.f]=t.value;return;}
+  if(t.dataset.fc&&DRAFT){DRAFT[t.dataset.fc]=t.checked;return;}
   const f=t.files&&t.files[0]; if(!f) return;
   if(t.dataset.inv&&DRAFT){toast('Saving photo…');const p=await stampPhoto(f,DRAFT.address?DRAFT:{address:'Baseline'});DRAFT.inventory=DRAFT.inventory||[];DRAFT.inventory.push({id:p.id,caption:''});render();return;}
   const vis=visit(); if(!vis) return; const h=home(vis.homeId);
@@ -1228,7 +1328,7 @@ document.addEventListener('change',async e=>{
 });
 (async function init(){
   try{
-    DB=await idb(); const saved=await dbGet('kv','data'); if(saved) D=saved; ensureBilling();
+    DB=await idb(); const saved=await dbGet('kv','data'); if(saved) D=saved; ensureBilling(); ensureSched();
     const ph=await dbAll('photos'); for(const [k,v] of Object.entries(ph)) URLS[k]=URL.createObjectURL(v.blob);
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
   }catch(e){ document.body.insertAdjacentHTML('afterbegin','<p style="background:#FDECEA;padding:12px;margin:0">This browser can\'t save data here. Open the app from its web address (not as a file) in Safari or Chrome.</p>'); DB=null; }
