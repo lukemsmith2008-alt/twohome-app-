@@ -557,9 +557,10 @@ async function delPhoto(pid){
 const ICON={
  visits:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
  homes:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>',
+ billing:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20M6 15h4"/></svg>',
  settings:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>'
 };
-const nav=()=>`<nav class="tabs" aria-label="Sections">${[['visits','Visits'],['homes','Homes'],['settings','Settings']].map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${ICON[k]}${l}</button>`).join('')}</nav>`;
+const nav=()=>`<nav class="tabs" aria-label="Sections">${[['visits','Visits'],['homes','Homes'],['billing','Billing'],['settings','Settings']].map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${S.tab===k?'on':''}">${ICON[k]}${l}</button>`).join('')}</nav>`;
 const topbar=(title,sub,back)=>`<header class="top">${back?`<button class="back" data-act="${back}">‹ Back</button>`:''}<h1>${esc(title)}</h1>${sub?`<p>${esc(sub)}</p>`:''}</header>`;
 function thumb(p,del){const u=URLS[p.id];return `<button class="thumb" data-act="lb" data-v="${p.id}" aria-label="Open photo">${u?`<img class="ph" src="${u}" alt="Photo">`:'<span class="ph"></span>'}${p.tag?`<span class="tag">${p.tag.toUpperCase()}</span>`:''}</button>`;}
 const addBtn=(attr,l)=>`<label class="addph">${l}<input type="file" accept="image/*" capture="environment" ${attr}></label>`;
@@ -603,6 +604,7 @@ function vVisit(){
    ${h.access?`<dt>Access</dt><dd>${S.reveal?esc(h.access):'••••'} <button class="btn btn-sm btn-out" style="min-height:32px;padding:4px 10px" data-act="reveal">${S.reveal?'Hide':'Show'}</button></dd>`:''}
    ${h.emergency?`<dt>Emergency OK</dt><dd>Up to $${esc(h.emergency)} to stop active damage</dd>`:''}</dl>
    ${h.notes?`<p style="margin:10px 0 0;font-size:14px;background:var(--orgbg);padding:10px;border-radius:10px"><b>Notes:</b> ${esc(h.notes)}</p>`:''}</div>
+  ${profileView(h)}
   <div class="cap">${answered}/${total} checks done</div><div class="progress"><div style="width:${Math.round(answered/total*100)}%"></div></div>
   <h2 class="sec">Photo proof: arrival</h2><div class="card">${proof('arrival','Arrival photo','Front of the home as you arrive.',1)}</div>
   ${areas.map(a=>`<h2 class="sec">${esc(a)}</h2><div class="card">${v.items.filter(i=>i.area===a).map(i=>itemRow(i,locked)).join('')}</div>`).join('')}
@@ -639,7 +641,8 @@ function vReport(){
   <div class="card"><p style="margin:0;font-size:15px;line-height:1.55">${fl.some(i=>i.status==='urgent')?'<b>Action needed:</b> we found an urgent issue and will call you.':fl.length?`<b>Your home is secure.</b> We noticed ${fl.length} thing${fl.length>1?'s':''} that will need attention soon. Reply YES and we'll take care of ${fl.length>1?'them':'it'}.`:'<b>Your home is secure and everything checked out.</b>'}</p></div>
   <h2 class="sec">Arrival & departure</h2><div class="card"><div class="gal">${[...v.proof.arrival.slice(0,1),...v.proof.departure.slice(0,1)].map(img).join('')}</div></div>
   ${fl.length?`<h2 class="sec">Recommended service</h2>${fl.map(i=>`<div class="rec ${i.status==='urgent'?'urg':''}"><h4>${i.status==='urgent'?'Urgent':'Soon'}: ${esc(i.label)}</h4><p>${esc(i.note||'See photo.')}</p><div class="gal">${i.photos.map(img).join('')}</div>
-   <div class="noprint" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="cap">Client's answer:</span>${['approved','declined'].map(r=>`<button class="btn btn-sm ${v.responses[i.id]===r?'btn-dark':'btn-out'}" data-act="resp" data-id="${i.id}" data-v="${r}">${r==='approved'?'Approved':'Not now'}</button>`).join('')}</div></div>`).join('')}`:''}
+   <div class="noprint" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="cap">Client's answer:</span>${['approved','declined'].map(r=>`<button class="btn btn-sm ${v.responses[i.id]===r?'btn-dark':'btn-out'}" data-act="resp" data-id="${i.id}" data-v="${r}">${r==='approved'?'Approved':'Not now'}</button>`).join('')}</div>
+   ${v.responses[i.id]==='approved'?(v.charged&&v.charged[i.id]?`<p class="cap noprint" style="margin-top:8px;color:var(--green)">✓ ${money(v.charged[i.id])} added to ${esc(h.client)}'s next statement</p>`:`<div class="noprint" style="display:flex;gap:8px;margin-top:8px;align-items:center"><input type="number" inputmode="decimal" step="0.01" placeholder="Price ($)" id="rc-${i.id}" style="max-width:130px"><button class="btn btn-sm btn-dark" data-act="reccharge" data-id="${i.id}">Add to bill</button></div>`):''}</div>`).join('')}`:''}
   ${done.length?`<h2 class="sec">Serviced today: before & after</h2><div class="card">${done.map(i=>`<b>${esc(i.label)}</b>${i.note?`<div class="cap">${esc(i.note)}</div>`:''}<div class="gal" style="margin:6px 0 12px">${['before','after'].map(t=>(i.photos.filter(p=>p.tag===t).slice(0,1)).map(img).join('')).join('')}</div>`).join('')}</div>`:''}
   ${v.proof.walk.length?`<h2 class="sec">Walk-through photos</h2><div class="card"><div class="gal">${v.proof.walk.map(img).join('')}</div></div>`:''}
   <h2 class="sec">Checked and OK (${ok.length})</h2><div class="card"><ul class="list">${ok.map(i=>`<li><span class="ok">✓</span> ${esc(i.label)}${i.note?` <span class="cap">· ${esc(i.note)}</span>`:''}</li>`).join('')}</ul></div>
@@ -815,6 +818,136 @@ async function previewPDF(){
   try{const blob=await buildPDF(v);const u=URL.createObjectURL(blob);const w=window.open(u,'_blank');if(!w)downloadBlob(blob,pdfName(v));}catch(e){toast(e.message||'Could not create the PDF');}
 }
 
+/* ================= BILLING ================= */
+const money=n=>'$'+(Number(n)||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');
+function ensureBilling(){D.charges=D.charges||[];D.statements=D.statements||[];D.settings.payLink=D.settings.payLink||'';D.settings.autopayLink=D.settings.autopayLink||'';D.settings.checksTo=D.settings.checksTo||'';}
+const chargesFor=(hid,st)=>D.charges.filter(c=>c.homeId===hid&&(!st||c.status===st));
+function vBilling(){
+  ensureBilling();
+  const unb=D.charges.filter(c=>c.status==='unbilled').reduce((a,c)=>a+ +c.amount,0);
+  const out=D.statements.filter(s=>s.status==='sent').reduce((a,s)=>a+s.total,0);
+  return topbar('Billing','Plans, add-on charges and statements')+`<main>
+  <div class="row" style="gap:10px;margin-bottom:12px"><div class="card" style="flex:1;margin:0;text-align:center"><div class="cap">Not yet billed</div><b style="font-size:20px">${money(unb)}</b></div><div class="card" style="flex:1;margin:0;text-align:center"><div class="cap">Waiting for payment</div><b style="font-size:20px;color:${out?'var(--org)':'inherit'}">${money(out)}</b></div></div>
+  ${!D.settings.payLink?`<div class="card" style="background:var(--orgbg);border-color:#E9B48F"><b>Add your payment link</b><p class="note" style="margin:4px 0 8px">Statements include a "Pay online" link. Add it in Settings › Payments.</p><button class="btn btn-sm btn-out" data-act="tab" data-v="settings">Open Settings</button></div>`:''}
+  ${D.homes.map(h=>{const ch=chargesFor(h.id,'unbilled');const st=D.statements.filter(s=>s.homeId===h.id&&s.status==='sent');
+   return `<div class="card"><div class="row"><b style="font-size:16px">${esc(h.client)}</b><span class="badge ${h.autopay==='active'?'b-done':'b-soon'}">${h.autopay==='active'?'AUTOPAY ON':'NO AUTOPAY'}</span></div>
+    <p class="cap" style="margin:4px 0 10px">${PLANS[h.plan]||''} · ${h.rate?money(h.rate)+'/month':'<span style="color:var(--org)">set monthly rate in Homes</span>'}</p>
+    ${ch.length?`<ul class="list" style="margin-bottom:8px">${ch.map(c=>`<li class="row"><span>${esc(c.desc)}<br><span class="cap">${dfmt(c.date)}</span></span><span style="display:flex;gap:8px;align-items:center"><b>${money(c.amount)}</b><button class="icon-btn" data-act="delcharge" data-v="${c.id}" aria-label="Remove charge">✕</button></span></li>`).join('')}</ul>`:'<p class="cap" style="margin:0 0 8px">No unbilled add-on charges.</p>'}
+    <details style="margin-bottom:10px"><summary style="cursor:pointer;color:var(--teal);font-weight:600;font-size:14px;min-height:32px">+ Add a charge</summary>
+     <label class="f" for="cd-${h.id}">Description</label><input id="cd-${h.id}" type="text" placeholder="e.g., Storm check, vendor meet (1 hr), salt at cost">
+     <label class="f" for="ca-${h.id}">Amount ($)</label><input id="ca-${h.id}" type="number" inputmode="decimal" step="0.01">
+     <button class="btn btn-sm btn-dark" style="margin-top:8px" data-act="addcharge" data-v="${h.id}">Add charge</button></details>
+    <button class="btn btn-pri btn-block" data-act="newstmt" data-v="${h.id}" ${!h.rate&&!ch.length?'disabled':''}>Create & send statement</button>
+    ${st.map(s=>`<div class="row" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span style="font-size:14px">Statement ${esc(s.num)} · ${esc(s.period)}<br><span class="cap">Sent ${dfmt(s.date)} · ${money(s.total)} due</span></span><span style="display:flex;gap:6px"><button class="btn btn-sm btn-out" data-act="resendstmt" data-v="${s.id}">Resend</button><button class="btn btn-sm btn-dark" data-act="paidstmt" data-v="${s.id}">Paid</button></span></div>`).join('')}
+   </div>`}).join('')||'<p class="note">Add a home first.</p>'}
+  ${D.statements.some(s=>s.status==='paid')?`<h2 class="sec">Paid</h2><div class="card"><ul class="list">${D.statements.filter(s=>s.status==='paid').slice(-20).reverse().map(s=>{const h=home(s.homeId)||{client:'(deleted)'};return `<li class="row"><span>${esc(h.client)} · ${esc(s.period)}<br><span class="cap">Paid ${s.paidDate?dfmt(s.paidDate):''}</span></span><b>${money(s.total)}</b></li>`}).join('')}</ul></div>`:''}
+  <p class="note">The app never stores card or bank numbers. Clients pay through your payment link (Square or Stripe), and autopay for the monthly plan is set up there.</p>
+  </main>`+nav();
+}
+function makeStatement(hid){
+  ensureBilling(); const h=home(hid); const ch=chargesFor(hid,'unbilled');
+  const now=new Date(); const period=now.toLocaleDateString([], {month:'long',year:'numeric'});
+  const lines=[];
+  if(h.rate) lines.push({desc:`${PLANS[h.plan]||'Home watch'} plan, ${period}`,date:now.toISOString(),amount:+h.rate,autopay:h.autopay==='active'});
+  ch.forEach(c=>lines.push({desc:c.desc,date:c.date,amount:+c.amount}));
+  const total=lines.filter(l=>!l.autopay).reduce((a,l)=>a+l.amount,0);
+  const num='S-'+now.toISOString().slice(2,7).replace('-','')+'-'+String(D.statements.length+1).padStart(3,'0');
+  const s={id:uid(),num,homeId:hid,date:now.toISOString(),period,lines,total,status:'sent',chargeIds:ch.map(c=>c.id)};
+  return s;
+}
+async function buildStatementPDF(s){
+  const jsPDF=await loadJsPDF(); const h=home(s.homeId), st=D.settings;
+  const doc=new jsPDF({unit:'pt',format:'letter'}); const W=612,H=792,M=46,CW=W-2*M;
+  const fill=c=>doc.setFillColor(c), col=c=>doc.setTextColor(c), draw=c=>doc.setDrawColor(c);
+  const font=(z,w='normal')=>{doc.setFont('helvetica',w);doc.setFontSize(z);};
+  const T=(t,x,y,o)=>doc.text(Array.isArray(t)?t:String(t),x,y,o);
+  fill(C.dark);doc.rect(0,0,W,118,'F');
+  font(9,'bold');col(C.peach);T(st.biz.toUpperCase(),M,42,{charSpace:1.2});
+  font(24,'bold');col('#FFFFFF');T('Statement',M,74);
+  font(10);col(C.pale);T(s.period,M,94);
+  font(8.5,'bold');col(C.peach);T('STATEMENT',W-M,42,{align:'right',charSpace:1});
+  font(11,'bold');col('#FFFFFF');T(s.num,W-M,58,{align:'right'});
+  font(9);col(C.pale);T('Issued '+dfmt(s.date),W-M,74,{align:'right'});
+  let y=148;
+  font(7.5,'bold');col(C.mut);T('BILL TO',M,y,{charSpace:.6});T('FROM',M+CW/2,y,{charSpace:.6});
+  font(11,'bold');col(C.txt);T(h.client,M,y+16);T(st.biz,M+CW/2,y+16);
+  font(9.5);col(C.mut);T(doc.splitTextToSize(h.address,CW/2-20),M,y+31);
+  T([st.me,st.phone,st.email].filter(Boolean),M+CW/2,y+31);
+  y+=84;
+  // table
+  fill(C.dark);doc.rect(M,y,CW,24,'F');font(8,'bold');col('#FFFFFF');T('DESCRIPTION',M+10,y+15.5,{charSpace:.6});T('DATE',M+CW*.62,y+15.5,{charSpace:.6});T('AMOUNT',W-M-10,y+15.5,{align:'right',charSpace:.6});y+=24;
+  s.lines.forEach((l,i)=>{const d=doc.splitTextToSize(l.desc,CW*.58);font(10);const rh=Math.max(28,14+d.length*13+(l.autopay?12:0));
+    if(i%2){fill('#FAF8F4');doc.rect(M,y,CW,rh,'F');}
+    font(10);col(C.txt);T(d,M+10,y+18);if(l.autopay){font(8.5,'italic');col(C.green);T('Paid by autopay, not included in amount due',M+10,y+18+d.length*13);}
+    font(9.5);col(C.mut);T(new Date(l.date).toLocaleDateString([], {month:'short',day:'numeric'}),M+CW*.62,y+18);
+    font(10,l.autopay?'normal':'bold');col(l.autopay?C.mut:C.txt);T(money(l.amount),W-M-10,y+18,{align:'right'});
+    draw(C.line);doc.setLineWidth(.5);doc.line(M,y+rh,W-M,y+rh);y+=rh;});
+  y+=14;
+  fill(C.sand);doc.roundedRect(M+CW*.5,y,CW*.5,54,6,6,'F');font(9,'bold');col(C.mut);T('AMOUNT DUE',M+CW*.5+16,y+22,{charSpace:.6});font(20,'bold');col(C.dark);T(money(s.total),W-M-16,y+36,{align:'right'});font(8.5);col(C.mut);T('Due upon receipt',M+CW*.5+16,y+40);
+  y+=80;
+  if(s.total>0){
+    font(12,'bold');col(C.dark);T('How to pay',M,y);y+=18;
+    if(st.payLink){fill(C.org);doc.roundedRect(M,y,170,30,15,15,'F');font(11,'bold');col('#FFFFFF');T('Pay online',M+85,y+19.5,{align:'center'});doc.link(M,y,170,30,{url:st.payLink});
+      font(9);col(C.teal);doc.textWithLink(st.payLink.length>70?st.payLink.slice(0,70)+'…':st.payLink,M+184,y+19,{url:st.payLink});y+=46;}
+    font(9.5);col(C.txt);const opts=[];opts.push('Card or bank transfer (ACH) through the "Pay online" link.');if(st.checksTo)opts.push(`Check payable to ${st.checksTo}.`);if(st.phone)opts.push(`Questions about this statement? Call or text ${st.phone}.`);
+    opts.forEach(o=>{T('•  '+o,M,y);y+=15;});y+=10;
+  }
+  if(h.autopay!=='active'&&st.autopayLink){fill(C.mist);doc.roundedRect(M,y,CW,48,6,6,'F');font(10.5,'bold');col(C.dark);T('Save time with autopay',M+16,y+20);font(9.5);col(C.txt);T('Your monthly plan can be paid automatically by card or bank account. ',M+16,y+35);
+    const tw=doc.getTextWidth('Your monthly plan can be paid automatically by card or bank account. ');col(C.teal);doc.textWithLink('Set up autopay',M+16+tw+3,y+35,{url:st.autopayLink});y+=60;}
+  font(9);col(C.mut);T('Thank you for trusting us with your home.',M,y+8);
+  draw(C.line);doc.setLineWidth(.6);doc.line(M,H-38,W-M,H-38);font(8);col(C.mut);T([st.biz,st.phone,st.email].filter(Boolean).join('  ·  '),M,H-24);T(s.num,W-M,H-24,{align:'right'});
+  return doc.output('blob');
+}
+async function shareStatement(s){
+  const h=home(s.homeId),st=D.settings; toast('Creating statement…');
+  let blob;try{blob=await buildStatementPDF(s);}catch(e){toast(e.message||'Could not create the PDF');return false;}
+  const name=`Statement ${s.num} - ${shortAddr(h).replace(/[^\w\s-]/g,'')}.pdf`;const file=new File([blob],name,{type:'application/pdf'});
+  const first=(h.client||'').split(/[ &,]/)[0];
+  const text=`Hi ${first}, attached is your ${s.period} statement from ${st.biz}. ${s.total>0?`Amount due: ${money(s.total)}.${st.payLink?' You can pay online here: '+st.payLink:''}`:'Nothing is due. Your plan is covered by autopay.'}\n\nThank you!${st.me?'\n- '+st.me:''}`;
+  try{ if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],text,title:'Statement'});return true;}
+       downloadBlob(blob,name);toast('Statement downloaded: attach it to a text or email');return true;
+  }catch(e){if(e.name!=='AbortError')toast('Sharing failed: try again');return false;}
+}
+
+/* ================= APP LOCK (PIN) ================= */
+let LOCKED=false, PINBUF='', LAST_HIDDEN=0;
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('twohome:'+t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function vLock(){
+  const dots=[0,1,2,3,4,5].slice(0,Math.max(4,PINBUF.length)).map(i=>`<span style="width:14px;height:14px;border-radius:50%;display:inline-block;margin:0 6px;background:${i<PINBUF.length?'#fff':'transparent'};border:2px solid #fff"></span>`).join('');
+  const k=n=>`<button data-act="pin" data-v="${n}" style="width:76px;height:76px;border-radius:50%;border:none;background:#163E49;color:#fff;font-size:28px;font-weight:600;cursor:pointer" aria-label="${n==='del'?'Delete':n}">${n==='del'?'⌫':n}</button>`;
+  return `<div style="min-height:100vh;background:var(--dark);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;padding:24px">
+   <div style="text-align:center"><p style="margin:0;color:#F0A374;font-weight:700;letter-spacing:1.5px;font-size:13px">${esc(D.settings.biz.toUpperCase())}</p><h1 style="margin:8px 0 0;font-size:22px">Enter your PIN</h1></div>
+   <div aria-live="polite">${dots}</div>
+   <div style="display:grid;grid-template-columns:repeat(3,76px);gap:16px">${[1,2,3,4,5,6,7,8,9].map(k).join('')}<span></span>${k(0)}${k('del')}</div>
+   <button data-act="pinok" class="btn btn-pri" style="min-width:200px">Unlock</button>
+   <p style="font-size:12.5px;color:#A9C4C8;max-width:300px;text-align:center;line-height:1.5">Forgot your PIN? It can't be recovered. Reinstalling the app and restoring a backup is the only way back in.</p></div>`;
+}
+document.addEventListener('visibilitychange',()=>{ if(!D.settings.pinHash) return;
+  if(document.hidden) LAST_HIDDEN=Date.now(); else if(LAST_HIDDEN&&Date.now()-LAST_HIDDEN>5*60*1000){LOCKED=true;PINBUF='';render();} });
+async function setPin(){
+  const a=$('#pin1').value.trim(), b=$('#pin2').value.trim();
+  if(!/^\d{4,6}$/.test(a)){toast('PIN must be 4–6 digits');return;} if(a!==b){toast('PINs do not match');return;}
+  D.settings.pinHash=await sha(a); await save(); toast('PIN set: the app locks after 5 minutes away');
+}
+
+/* ================= HOME PROFILE ================= */
+const PROFILE=[['waterShutoff','Main water shutoff location'],['gasShutoff','Gas shutoff location'],['panel','Electrical panel location'],['filterSize','HVAC/furnace filter size'],['waterHeater','Water heater (location, age)'],['thermostat','Thermostat settings while away'],['sump','Sump pump / backup notes'],['devices','Smart devices, cameras, Wi-Fi notes'],['contacts','Local contacts (neighbor, HOA)']];
+function profileEditor(h){
+  h.profile=h.profile||{}; h.inventory=h.inventory||[];
+  return `<h2 class="sec">Home profile</h2><div class="card"><p class="note" style="margin:0 0 4px">Fill this in on the first walk-through. It shows on every visit so anyone on the team knows where things are.</p>
+   ${PROFILE.map(([k,l])=>`<label class="f" for="p-${k}">${l}</label><input id="p-${k}" type="text" data-pf="${k}" value="${esc(h.profile[k]||'')}">`).join('')}</div>
+  <h2 class="sec">Baseline photos</h2><div class="card"><p class="note" style="margin:0 0 8px">Photograph shutoffs, the panel, water heater, filter, and each room's condition at sign-up. They're your "before" record if anything changes later.</p>
+   ${h.inventory.map((p,ix)=>`<div class="edit-row" style="grid-template-columns:72px 1fr auto">${URLS[p.id]?`<img class="ph" src="${URLS[p.id]}" alt="Baseline photo">`:'<span class="ph"></span>'}<input type="text" aria-label="Photo caption" data-invcap="${ix}" value="${esc(p.caption||'')}" placeholder="What is this? (e.g., water shutoff)"><button class="icon-btn" data-act="delinv" data-v="${ix}" aria-label="Remove photo">✕</button></div>`).join('')}
+   <div class="photos">${addBtn('data-inv="1"','+ Photo')}</div></div>`;
+}
+function profileView(h){
+  const pr=h.profile||{}; const rows=PROFILE.filter(([k])=>pr[k]); const inv=h.inventory||[];
+  if(!rows.length&&!inv.length) return '';
+  return `<details class="card"><summary style="cursor:pointer;font-weight:700;min-height:32px">Home profile & baseline photos</summary>
+   ${rows.length?`<dl class="kv" style="margin-top:10px">${rows.map(([k,l])=>`<dt>${l.replace(' location','')}</dt><dd>${esc(pr[k])}</dd>`).join('')}</dl>`:''}
+   ${inv.length?`<div class="gal" style="margin-top:10px">${inv.map(p=>`<div>${URLS[p.id]?`<img src="${URLS[p.id]}" alt="${esc(p.caption||'Baseline photo')}">`:''}<div class="cap">${esc(p.caption||'')}</div></div>`).join('')}</div>`:''}</details>`;
+}
+
 /* ================= HOMES ================= */
 function vHomes(){
   return topbar('Homes',`${D.homes.length} home${D.homes.length!==1?'s':''}`)+`<main>
@@ -830,8 +963,11 @@ function vHome(){
   <div class="card">${f('client','Client name','text','e.g., Grandma & Grandpa')}${f('address','Home address','text','Street, city, state')}${f('phone','Client phone','tel')}${f('email','Client email','email')}
    <label class="f" for="f-plan">Plan</label><select id="f-plan" data-f="plan">${Object.entries(PLANS).map(([k,l])=>`<option value="${k}" ${h.plan===k?'selected':''}>${l}</option>`).join('')}</select>
    <label class="f" for="f-access">Access info (lockbox, alarm, key tag)</label><input id="f-access" type="text" data-f="access" value="${esc(h.access)}" placeholder="Hidden until you tap Show">
+   ${f('rate','Monthly rate ($)','number')}
+   <label class="f" for="f-autopay">Autopay</label><select id="f-autopay" data-f="autopay"><option value="none" ${h.autopay!=='active'?'selected':''}>Not set up</option><option value="active" ${h.autopay==='active'?'selected':''}>Active (plan is paid automatically)</option></select>
    ${f('emergency','Emergency spending OK up to ($)','number')}
    <label class="f" for="f-notes">Notes for the visit</label><textarea id="f-notes" rows="3" data-f="notes" placeholder="Shutoff locations, thermostat setting, quirks of this house">${esc(h.notes)}</textarea></div>
+  ${profileEditor(h)}
   <h2 class="sec">Checklist for this home</h2>
   <div class="card"><p class="note" style="margin:0 0 8px">Start from a template, then rename, remove or add items to fit this house.</p>
    <div style="display:flex;gap:8px;flex-wrap:wrap">${Object.entries(TEMPLATES).map(([k,t])=>`<button class="btn btn-sm ${h.tpl===k?'btn-dark':'btn-out'}" data-act="tpl" data-v="${k}">${t.name}</button>`).join('')}</div></div>
@@ -847,9 +983,17 @@ function vHome(){
 
 /* ================= SETTINGS ================= */
 function vSettings(){
-  const s=D.settings; const f=(k,l,t='text')=>`<label class="f" for="s-${k}">${l}</label><input id="s-${k}" type="${t}" data-s="${k}" value="${esc(s[k])}">`;
+  ensureBilling();const s=D.settings; const f=(k,l,t='text')=>`<label class="f" for="s-${k}">${l}</label><input id="s-${k}" type="${t}" data-s="${k}" value="${esc(s[k])}">`;
   return topbar('Settings','Shown on every report')+`<main>
   <div class="card">${f('biz','Business name')}${f('me','Your name (shown as "Checked by")')}${f('phone','Business phone','tel')}${f('email','Business email','email')}</div>
+  <h2 class="sec">App lock</h2>
+  <div class="card"><p class="note" style="margin:0 0 6px">${s.pinHash?'A PIN is set. The app asks for it when opened and after 5 minutes away.':'Protect lockbox and alarm codes with a 4–6 digit PIN.'} Write your PIN down somewhere safe.</p>
+   <label class="f" for="pin1">${s.pinHash?'New PIN':'PIN'}</label><input id="pin1" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+   <label class="f" for="pin2">Repeat PIN</label><input id="pin2" type="password" inputmode="numeric" maxlength="6" autocomplete="off">
+   <div style="display:flex;gap:8px;margin-top:10px"><button class="btn btn-sm btn-dark" data-act="setpin">${s.pinHash?'Change PIN':'Set PIN'}</button>${s.pinHash?'<button class="btn btn-sm btn-danger" data-act="clearpin">Turn off PIN</button>':''}</div></div>
+  <h2 class="sec">Payments</h2>
+  <div class="card"><p class="note" style="margin:0 0 6px">Create these links in Square or Stripe (free to set up; you pay a small fee per payment). They appear as buttons on your statements.</p>
+   ${f('payLink','"Pay online" link (any amount)','url')}${f('autopayLink','Autopay sign-up link (monthly plan)','url')}${f('checksTo','Checks payable to (optional)')}</div>
   <h2 class="sec">Backup</h2>
   <div class="card"><p class="note" style="margin:0 0 10px">Everything is saved <b>only on this phone</b>. Download a backup every week and keep it in iCloud/Google Drive. If the browser's data is cleared, the backup is how you get it back.</p>
    <button class="btn btn-dark btn-block" data-act="export">Download backup</button>
@@ -870,11 +1014,14 @@ async function importAll(file){
 
 /* ================= Render + events ================= */
 function render(){
+  if(LOCKED){$('#app').innerHTML=vLock();return;}
   let h;
   if(S.view==='visit') h=vVisit(); else if(S.view==='report') h=vReport(); else if(S.view==='home') h=vHome();
-  else h=S.tab==='visits'?vVisits():S.tab==='homes'?vHomes():vSettings();
+  else h=S.tab==='visits'?vVisits():S.tab==='homes'?vHomes():S.tab==='billing'?vBilling():vSettings();
+  if(!navigator.onLine) h=h.replace('<main>','<main><div class="card" style="background:var(--mist);padding:10px 14px;font-size:13.5px"><b>Offline.</b> Everything still saves. Send reports once you have signal.</div>');
   $('#app').innerHTML=h;
 }
+window.addEventListener('online',()=>render());window.addEventListener('offline',()=>render());
 document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-act]'); if(!b) return; const a=b.dataset.act,v=b.dataset.v; const vis=visit();
   switch(a){
@@ -907,6 +1054,20 @@ document.addEventListener('click',async e=>{
     case 'savehome':{const h=DRAFT;if(!h.client.trim()||!h.address.trim()){toast('Add a client name and address');return;}
       h.checklist=h.checklist.filter(c=>c.label.trim());delete h.isNew;const ix=D.homes.findIndex(x=>x.id===h.id);if(ix>=0)D.homes[ix]=h;else D.homes.push(h);await save();toast('Home saved');S.view='list';S.tab='homes';break;}
     case 'delhome': if(confirmDel('Delete this home? Past visit reports are kept.')){D.homes=D.homes.filter(x=>x.id!==DRAFT.id);await save();S.view='list';S.tab='homes';}break;
+    case 'addcharge':{ensureBilling();const d=$('#cd-'+v).value.trim(),amt=parseFloat($('#ca-'+v).value);if(!d||!(amt>0)){toast('Add a description and amount');return;}
+      D.charges.push({id:uid(),homeId:v,date:new Date().toISOString(),desc:d,amount:amt,status:'unbilled'});await save();toast('Charge added');break;}
+    case 'delcharge': if(confirmDel('Remove this charge?')){D.charges=D.charges.filter(c=>c.id!==v);await save();}break;
+    case 'reccharge':{ensureBilling();const amt=parseFloat($('#rc-'+b.dataset.id).value);if(!(amt>0)){toast('Enter a price');return;}const it=vis.items.find(i=>i.id===b.dataset.id);
+      D.charges.push({id:uid(),homeId:vis.homeId,date:new Date().toISOString(),desc:`${it.label} (approved after ${dfmt(vis.date)} visit)`,amount:amt,status:'unbilled'});vis.charged=vis.charged||{};vis.charged[it.id]=amt;await save();toast('Added to next statement');break;}
+    case 'newstmt':{const s=makeStatement(v);if(await shareStatement(s)){D.statements.push(s);D.charges.forEach(c=>{if(s.chargeIds.includes(c.id)){c.status='billed';c.stmtId=s.id;}});if(s.total===0)s.status='paid';await save();toast('Statement saved');}break;}
+    case 'resendstmt':{await shareStatement(D.statements.find(x=>x.id===v));return;}
+    case 'paidstmt':{const s=D.statements.find(x=>x.id===v);s.status='paid';s.paidDate=new Date().toISOString();D.charges.forEach(c=>{if(c.stmtId===s.id)c.status='paid';});await save();toast('Marked as paid');break;}
+    case 'pin': if(v==='del')PINBUF=PINBUF.slice(0,-1);else if(PINBUF.length<6)PINBUF+=v;
+      if(PINBUF.length>=4&&await sha(PINBUF)===D.settings.pinHash){LOCKED=false;PINBUF='';}break;
+    case 'pinok': if(await sha(PINBUF)===D.settings.pinHash){LOCKED=false;PINBUF='';}else{PINBUF='';toast('Wrong PIN');}break;
+    case 'setpin': await setPin();break;
+    case 'clearpin': if(confirmDel('Turn off the PIN lock?')){delete D.settings.pinHash;await save();}break;
+    case 'delinv': DRAFT.inventory.splice(+v,1);break;
     case 'export': await exportAll();toast('Backup downloaded');return;
   }
   render();
@@ -916,6 +1077,8 @@ document.addEventListener('input',async e=>{
   const t=e.target, vis=visit();
   if(t.dataset.note&&vis){vis.items.find(i=>i.id===t.dataset.note).note=t.value;clearTimeout(window._sv);window._sv=setTimeout(save,400);}
   else if(t.dataset.f&&DRAFT){DRAFT[t.dataset.f]=t.value;}
+  else if(t.dataset.pf&&DRAFT){DRAFT.profile=DRAFT.profile||{};DRAFT.profile[t.dataset.pf]=t.value;}
+  else if(t.dataset.invcap!==undefined&&DRAFT){DRAFT.inventory[+t.dataset.invcap].caption=t.value;}
   else if(t.dataset.ci!==undefined&&DRAFT){DRAFT.checklist[+t.dataset.ci].label=t.value;}
   else if(t.dataset.ui!==undefined&&DRAFT){DRAFT.upkeep[+t.dataset.ui]=t.value;}
   else if(t.dataset.s){D.settings[t.dataset.s]=t.value;clearTimeout(window._sv);window._sv=setTimeout(save,400);}
@@ -923,8 +1086,10 @@ document.addEventListener('input',async e=>{
 document.addEventListener('change',async e=>{
   const t=e.target;
   if(t.dataset.import&&t.files[0]){try{await importAll(t.files[0]);toast('Backup restored');render();}catch(_){toast('That file is not a valid backup');}return;}
-  if(t.dataset.f==='plan'&&DRAFT){DRAFT.plan=t.value;return;}
-  const f=t.files&&t.files[0]; if(!f) return; const vis=visit(); if(!vis) return; const h=home(vis.homeId);
+  if((t.dataset.f==='plan'||t.dataset.f==='autopay')&&DRAFT){DRAFT[t.dataset.f]=t.value;return;}
+  const f=t.files&&t.files[0]; if(!f) return;
+  if(t.dataset.inv&&DRAFT){toast('Saving photo…');const p=await stampPhoto(f,DRAFT.address?DRAFT:{address:'Baseline'});DRAFT.inventory=DRAFT.inventory||[];DRAFT.inventory.push({id:p.id,caption:''});render();return;}
+  const vis=visit(); if(!vis) return; const h=home(vis.homeId);
   toast('Saving photo…');
   const p=await stampPhoto(f,h);
   if(t.dataset.proof){vis.proof[t.dataset.proof].push(p);}
@@ -933,10 +1098,12 @@ document.addEventListener('change',async e=>{
 });
 (async function init(){
   try{
-    DB=await idb(); const saved=await dbGet('kv','data'); if(saved) D=saved;
+    DB=await idb(); const saved=await dbGet('kv','data'); if(saved) D=saved; ensureBilling();
     const ph=await dbAll('photos'); for(const [k,v] of Object.entries(ph)) URLS[k]=URL.createObjectURL(v.blob);
     if(navigator.storage&&navigator.storage.persist) navigator.storage.persist();
   }catch(e){ document.body.insertAdjacentHTML('afterbegin','<p style="background:#FDECEA;padding:12px;margin:0">This browser can\'t save data here. Open the app from its web address (not as a file) in Safari or Chrome.</p>'); DB=null; }
+  if(D.settings.pinHash) LOCKED=true;
+  if('serviceWorker' in navigator && location.protocol==='https:') navigator.serviceWorker.register('./sw.js').catch(()=>{});
   render();
 })();
 </script>
